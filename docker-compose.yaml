@@ -1,0 +1,98 @@
+name: mihomo-warp-proxy
+
+services:
+  mihomo-proxy:
+    build:
+      context: https://github.com/webstudiobond/mihomo-warp-proxy.git
+    image: sb/mihomo-warp-proxy:latest
+    pull_policy: never
+    container_name: mihomo-warp-proxy
+    hostname: mihomo-warp-proxy
+    restart: unless-stopped
+    env_file:
+    # Keep your settings safe
+      - .env
+    ports:
+      - "${PROXY_PORT:-7890}:${PROXY_PORT:-7890}"
+    environment:
+      TZ: ${TZ:-UTC}
+      # SCRIPT_LOG_LEVEL can take the following values: DEBUG, INFO, WARN, ERROR
+      SCRIPT_LOG_LEVEL: ${SCRIPT_LOG_LEVEL:-ERROR}
+      # PROXY_LOG_LEVEL can take the following values: silent, error, warning, info, debug
+      PROXY_LOG_LEVEL: ${PROXY_LOG_LEVEL:-error}
+      # PROXY_UID and PROXY_GID are only used when running the container as root
+      PROXY_UID: ${PROXY_UID:-911}
+      PROXY_GID: ${PROXY_GID:-911}
+      # Mixed SOCKS/HTTP(S) port
+      PROXY_PORT: ${PROXY_PORT:-7890}
+      # Don't forget to specify your unique authentication credentials in the .env file
+      # pwgen -s 64 1
+      PROXY_USER: ${PROXY_USER:-3N0fcYvmrmtdaPnF5cpFgF1Pn3hh5ahjfgpF5Fj0HsNT0QwIMuOJTAYEryKeRgVY}
+      # pwgen -s 128 1
+      PROXY_PASS: ${PROXY_PASS:-DBKNe9VmXacQqvyGz1e1EZWVNMRLM40r1ZLOMKlazKiWtRY7JAchNR0zC2UGIL26KvkowqhTROiZ5Tr54mrOjZTn0NSiUuSUHYWcONFqu6hnv5G6P2cjwkZMOq203i3i}
+      # Whether the geodata should be downloaded at container startup (downloading will only occur if the data has changed)
+      GEO: ${GEO:-true}
+      # Forced download of geodata
+      GEO_REDOWNLOAD: ${GEO_REDOWNLOAD:-false}
+      # Links for geodata
+      GEO_URL_GEOIP: ${GEO_URL_GEOIP:-"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"}
+      GEO_URL_GEOSITE: ${GEO_URL_GEOSITE:-"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"}
+      GEO_URL_MMDB: ${GEO_URL_MMDB:-"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb"}
+      GEO_URL_ASN: ${GEO_URL_ASN:-"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb"}
+      # Whether wgcf should be used to generate WARP. If false, WARP_ parameters are not used
+      USE_WARP_CONFIG: ${USE_WARP_CONFIG:-true}
+      WARP_REGENERATE: ${WARP_REGENERATE:-false}
+      # Not tested. Presumably you can use your key for WARP+
+      WARP_PLUS_KEY: ${WARP_PLUS_KEY:-}
+      # WARP endpoint server:port
+      # servers
+      # engage.cloudflareclient.com
+      # 162.159.192.x — 0-254
+      # 192.159.193.x — 1-10
+      # ports
+      # one of these ports: 2408, 500, 4500, 1701
+      WARP_ENDPOINT: ${WARP_ENDPOINT:-engage.cloudflareclient.com:2408}
+      # DNS: can be specified IPv4, IPv6, tls://, https://, quic://
+      WARP_DNS: ${WARP_DNS:-1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001}
+      # AmneziaWG classic
+      # https://docs.amnezia.org/documentation/amnezia-wg/
+      # Whether AmneziaWG should be used
+      WARP_AMNEZIA: ${WARP_AMNEZIA:-false}
+      # Junk packet count: 1-128
+      WARP_AMNEZIA_JC: ${WARP_AMNEZIA_JC:-}
+      # Junk packet minimum size < jmax
+      WARP_AMNEZIA_JMIN: ${WARP_AMNEZIA_JMIN:-}
+      # Junk packet maximum size <= 1280
+      WARP_AMNEZIA_JMAX: ${WARP_AMNEZIA_JMAX:-}
+      # AmneziaWG v1.5 variables
+      # <b hex_data> Static bytes to emulate protocols. Arbitrary length
+      # <c> Packet counter (32-bit, network byte order) Unique within the sequence
+      # <t> Unix timestamp (32-bit, network byte order) Unique within the sequence
+      # <r length> Cryptographically secure random bytes length <= 1000
+      WARP_AMNEZIA_I1: ${WARP_AMNEZIA_I1:-}
+      WARP_AMNEZIA_I2: ${WARP_AMNEZIA_I2:-}
+      WARP_AMNEZIA_I3: ${WARP_AMNEZIA_I3:-}
+      WARP_AMNEZIA_I4: ${WARP_AMNEZIA_I4:-}
+      WARP_AMNEZIA_I5: ${WARP_AMNEZIA_I5:-}
+      WARP_AMNEZIA_J1: ${WARP_AMNEZIA_J1:-}
+      WARP_AMNEZIA_J2: ${WARP_AMNEZIA_J2:-}
+      WARP_AMNEZIA_J3: ${WARP_AMNEZIA_J3:-}
+      WARP_AMNEZIA_ITIME: ${WARP_AMNEZIA_ITIME:-}
+    # volumes:
+    #   - ./mihomo-data:/app/mihomo:rw
+    #   - ./wgcf-data:/app/wgcf:rw
+    networks:
+      proxy:
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      options:
+        max-size: "10M"
+        max-file: "2"
+    cpus: 0.5
+    mem_limit: 512m
+    mem_reservation: 256m
+    user: "911:911"
+    
+networks:
+  proxy:
