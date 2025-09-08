@@ -61,7 +61,7 @@ RUN set -eux; \
 
 # create app dirs; set default ownership to 911:911 (image-level) so non-root runs with --user=911:911 work without extra chown
 RUN mkdir -p /app/mihomo /app/wgcf /app/logs && \
-    chmod 0755 /usr/local/bin/entrypoint.sh /usr/local/bin/wgcf.sh && \
+    chmod 0755 /usr/local/bin/entrypoint.sh && \
     chmod 0755 /usr/local/bin/mihomo /usr/local/bin/wgcf && \
     chmod 644 /usr/local/bin/modules/*.sh && \
     chown -R 911:911 /app && \
