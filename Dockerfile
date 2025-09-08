@@ -52,7 +52,6 @@ COPY --from=builder /tmp/mihomo /usr/local/bin/
 
 COPY modules/  /usr/local/bin/modules/
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY wgcf.sh /usr/local/bin/wgcf.sh
 COPY version /app/version
 
 RUN set -eux; \
