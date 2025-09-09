@@ -29,7 +29,8 @@ dns_to_yaml_array() {
 }
 
 create_mihomo_template_config() {
-  mkdir -p "$(dirname "$MIHOMO_CONFIG_FILE")"
+
+  mkdir -p "$(dirname "$MIHOMO_CONFIG_FILE")" || err_exit "Failed to create config directory"
   
   cat > "$MIHOMO_CONFIG_FILE" << EOF
 mode: rule
@@ -46,6 +47,7 @@ global-client-fingerprint: chrome
 EOF
 
   if is_true "$GEO"; then
+
     cat >> "$MIHOMO_CONFIG_FILE" <<EOF
 geodata-mode: true
 geodata-loader: memconservative
@@ -57,11 +59,14 @@ geox-url:
   mmdb: "${GEO_URL_MMDB:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb}"
   asn: "${GEO_URL_ASN:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb}"
 EOF
+
   fi
 
   if is_true "$USE_WARP_CONFIG"; then
-    DNS_YAML="[$(dns_to_yaml_array "$WARP_DNS")]"
-    [ -n "$(dns_to_yaml_array "$WARP_DNS")" ] || err_exit "Invalid DNS configuration: $WARP_DNS"
+
+    DNS_YAML="$(dns_to_yaml_array "$WARP_DNS")"
+    [ -n "$DNS_YAML" ] || err_exit "Invalid DNS configuration: $WARP_DNS"
+    DNS_YAML="[$DNS_YAML]"
   
     cat >> "$MIHOMO_CONFIG_FILE" <<EOF
 proxies:
@@ -78,9 +83,9 @@ proxies:
     remote-dns-resolve: true
     dns: $DNS_YAML
 EOF
+    if is_true "$WARP_AMNEZIA"; then
 
-  if is_true "$WARP_AMNEZIA"; then
-    cat >> "$MIHOMO_CONFIG_FILE" <<EOF
+      cat >> "$MIHOMO_CONFIG_FILE" <<EOF
     amnezia-wg-option:
       jc: $WARP_AMNEZIA_JC
       jmin: $WARP_AMNEZIA_JMIN
@@ -101,18 +106,21 @@ EOF
       j3: $WARP_AMNEZIA_J3
       itime: $WARP_AMNEZIA_ITIME
 EOF
-  fi
+    fi
   
   cat >> "$MIHOMO_CONFIG_FILE" <<EOF
 rules:
   - MATCH,warp
 EOF
-else
-  cat >> "$MIHOMO_CONFIG_FILE" <<EOF
+
+  else
+
+    cat >> "$MIHOMO_CONFIG_FILE" <<EOF
 rules:
   - MATCH,DIRECT
 EOF
-fi
+
+  fi
 }
 
 # Helper function to escape values for yq
