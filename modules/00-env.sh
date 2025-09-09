@@ -56,8 +56,8 @@ readonly GEO_URL_ASN=${GEO_URL_ASN:-"$GEO_BASE_URL/GeoLite2-ASN.mmdb"}
 # WARP wgcf
 WGCF_DATA="/app/wgcf"
 WGCF_BIN="/usr/local/bin/wgcf"
-ACCOUNT_FILE="$WGCF_DATA/wgcf-account.toml"
-PROFILE_FILE="$WGCF_DATA/wgcf-profile.conf"
+WGCF_ACCOUNT_FILE="$WGCF_DATA/wgcf-account.toml"
+WGCF_PROFILE_FILE="$WGCF_DATA/wgcf-profile.conf"
 
 USE_WARP_CONFIG=${USE_WARP_CONFIG:-true}
 WARP_PLUS_KEY=${WARP_PLUS_KEY:-}
