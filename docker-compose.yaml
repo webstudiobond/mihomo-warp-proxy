@@ -8,12 +8,19 @@ services:
     pull_policy: never
     container_name: mihomo-warp-proxy
     hostname: mihomo-warp-proxy
-    restart: unless-stopped
+    # restart: no, always, unless-stopped, on-failure:3 (one of this)
+    restart: on-failure:3
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --fail --socks5 localhost:$PROXY_PORT --proxy-user $PROXY_USER:$PROXY_PASS https://cp.cloudflare.com/generate_204 || exit 1"]
+      interval: 30s
+      timeout: 1m
+      retries: 3
+      start_period: 20s
     env_file:
     # Keep your settings safe
       - .env
-    ports:
-      - "${PROXY_PORT:-7890}:${PROXY_PORT:-7890}"
+    # ports:
+    #   - "${PROXY_PORT:-7890}:${PROXY_PORT:-7890}"
     environment:
       TZ: ${TZ:-UTC}
       # SCRIPT_LOG_LEVEL can take the following values: DEBUG, INFO, WARN, ERROR
@@ -31,7 +38,7 @@ services:
       # pwgen -s 128 1
       PROXY_PASS: ${PROXY_PASS:-DBKNe9VmXacQqvyGz1e1EZWVNMRLM40r1ZLOMKlazKiWtRY7JAchNR0zC2UGIL26KvkowqhTROiZ5Tr54mrOjZTn0NSiUuSUHYWcONFqu6hnv5G6P2cjwkZMOq203i3i}
       # Whether the geodata should be downloaded at container startup (downloading will only occur if the data has changed)
-      GEO: ${GEO:-true}
+      GEO: ${GEO:-false}
       # Forced download of geodata
       GEO_REDOWNLOAD: ${GEO_REDOWNLOAD:-false}
       # Links for geodata
@@ -45,12 +52,8 @@ services:
       # Not tested. Presumably you can use your key for WARP+
       WARP_PLUS_KEY: ${WARP_PLUS_KEY:-}
       # WARP endpoint server:port
-      # servers
-      # engage.cloudflareclient.com
-      # 162.159.192.x — 0-254
-      # 192.159.193.x — 1-10
-      # ports
-      # one of these ports: 2408, 500, 4500, 1701
+      # server: engage.cloudflareclient.com
+      # port: 2408, 500, 4500, 1701 (one of this)
       WARP_ENDPOINT: ${WARP_ENDPOINT:-engage.cloudflareclient.com:2408}
       # DNS: can be specified IPv4, IPv6, tls://, https://, quic://
       WARP_DNS: ${WARP_DNS:-1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001}
@@ -69,6 +72,7 @@ services:
       # <c> Packet counter (32-bit, network byte order) Unique within the sequence
       # <t> Unix timestamp (32-bit, network byte order) Unique within the sequence
       # <r length> Cryptographically secure random bytes length <= 1000
+      # <wt num> num <= 5000
       WARP_AMNEZIA_I1: ${WARP_AMNEZIA_I1:-}
       WARP_AMNEZIA_I2: ${WARP_AMNEZIA_I2:-}
       WARP_AMNEZIA_I3: ${WARP_AMNEZIA_I3:-}
@@ -78,9 +82,9 @@ services:
       WARP_AMNEZIA_J2: ${WARP_AMNEZIA_J2:-}
       WARP_AMNEZIA_J3: ${WARP_AMNEZIA_J3:-}
       WARP_AMNEZIA_ITIME: ${WARP_AMNEZIA_ITIME:-}
-    # volumes:
-    #   - ./mihomo-data:/app/mihomo:rw
-    #   - ./wgcf-data:/app/wgcf:rw
+    volumes:
+      - ./mihomo-data:/app/mihomo:rw
+      - ./wgcf-data:/app/wgcf:rw
     networks:
       proxy:
     security_opt:
@@ -92,7 +96,7 @@ services:
     cpus: 0.5
     mem_limit: 512m
     mem_reservation: 256m
-    user: "911:911"
+    # user: "911:911"
     
 networks:
   proxy:
