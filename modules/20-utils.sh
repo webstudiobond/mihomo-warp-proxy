@@ -188,15 +188,16 @@ create_secure_temp_file() {
   counter=0
   while [ $counter -lt $max_attempts ]; do
     temp_file=$(mktemp "$base_dir/.$prefix.XXXXXX" 2>/dev/null) || temp_file=""
-    if [ -n "$temp_file" ] && [ -f "$temp_file" ] && [ ! -L "$temp_file" ]; then
-      # We check that the file was actually created by us
-      if [ -O "$temp_file" ] 2>/dev/null || true; then
+    
+    if [ -n "$temp_file" ]; then
+      # Verify immediately after creation (reduce TOCTOU window)
+      if [ -f "$temp_file" ] && [ ! -L "$temp_file" ] && [ -O "$temp_file" ] 2>/dev/null; then
         break
-      else
-        rm -f "$temp_file" 2>/dev/null || true
-        temp_file=""
       fi
+      rm -f "$temp_file" 2>/dev/null || true
+      temp_file=""
     fi
+
     counter=$((counter + 1))
     # A small delay to prevent busy loop
     sleep 0.1
