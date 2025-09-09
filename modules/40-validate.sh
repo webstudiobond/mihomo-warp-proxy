@@ -147,7 +147,7 @@ validate_proxy_credentials() {
   
   # Character validation for password
   case "$PROXY_PASS" in
-    *:*) err_exit "PROXY_USER cannot contain colon characters" ;;
+    *:*) err_exit "PROXY_PASS cannot contain colon characters" ;;
     *[\"\'\\$\`]*) err_exit "PROXY_PASS cannot contain quotes, backslashes, dollar signs, or backticks" ;;
     *[[:cntrl:]]*) err_exit "PROXY_PASS cannot contain control characters" ;;
   esac
