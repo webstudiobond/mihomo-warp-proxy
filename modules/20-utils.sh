@@ -85,17 +85,15 @@ chown_image_dirs_to_proxy() {
   # Set ownership for internal files and directories
   log "DEBUG" "Setting ownership of internal directories and files to ${PROXY_UID}:${PROXY_GID}"
   if [ -d "$MIHOMO_DATA" ]; then
-    chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA" || { log "ERROR" "Failed to chown: $MIHOMO_DATA"; return 1; }
+    chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA" || err_exit "Failed to chown: $MIHOMO_DATA"
     if [ "$(stat -c '%u:%g' "$MIHOMO_DATA")" != "${PROXY_UID}:${PROXY_GID}" ]; then
-      log "ERROR" "Ownership verification failed for $MIHOMO_DATA"
-      return 1
+      err_exit "Ownership verification failed for $MIHOMO_DATA"
     fi
     for file in cache.db config.yaml config.yaml.back geoip.dat geoip.metadb GeoLite2-ASN.mmdb geosite.dat; do
       if [ -f "$MIHOMO_DATA/$file" ]; then
-        chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA/$file" || { log "ERROR" "Failed to chown: $MIHOMO_DATA/$file"; return 1; }
+        chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA/$file" || err_exit "Failed to chown: $MIHOMO_DATA/$file"
         if [ "$(stat -c '%u:%g' "$MIHOMO_DATA/$file")" != "${PROXY_UID}:${PROXY_GID}" ]; then
-          log "ERROR" "Ownership verification failed for $MIHOMO_DATA/$file"
-          return 1
+          err_exit "Ownership verification failed for $MIHOMO_DATA/$file"
         fi
         log "DEBUG" "Successfully set ownership of $MIHOMO_DATA/$file to ${PROXY_UID}:${PROXY_GID}"
       fi
@@ -108,17 +106,15 @@ chown_image_dirs_to_proxy() {
   # Ensure wgcf directory exists and has correct ownership
   mkdir -p "$WGCF_DATA" 2>/dev/null || { log "WARN" "Failed to mkdir: $WGCF_DATA"; }
   if [ -d "$WGCF_DATA" ]; then
-    chown -h "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA" || { log "ERROR" "Failed to chown: $WGCF_DATA"; return 1; }
+    chown -h "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA" || err_exit "Failed to chown: $WGCF_DATA"
     if [ "$(stat -c '%u:%g' "$WGCF_DATA")" != "${PROXY_UID}:${PROXY_GID}" ]; then
-      log "ERROR" "Ownership verification failed for $WGCF_DATA"
-      return 1
+      err_exit "Ownership verification failed for $WGCF_DATA"
     fi
     for file in wgcf-account.toml wgcf-profile.conf; do
       if [ -f "$WGCF_DATA/$file" ]; then
-        chown -h "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA/$file" || { log "ERROR" "Failed to chown: $WGCF_DATA/$file"; return 1; }
+        chown -h "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA/$file" || err_exit "Failed to chown: $WGCF_DATA/$file"
         if [ "$(stat -c '%u:%g' "$WGCF_DATA/$file")" != "${PROXY_UID}:${PROXY_GID}" ]; then
-          log "ERROR" "Ownership verification failed for $WGCF_DATA/$file"
-          return 1
+          err_exit "Ownership verification failed for $WGCF_DATA/$file"
         fi
         log "DEBUG" "Successfully set ownership of $WGCF_DATA/$file to ${PROXY_UID}:${PROXY_GID}"
       fi
@@ -131,10 +127,9 @@ chown_image_dirs_to_proxy() {
   # Only chown config file if it's not in a mounted directory
   if [ -f "$MIHOMO_CONFIG_FILE" ] && can_write_dir "$(dirname "$MIHOMO_CONFIG_FILE")"; then
     if [ "$MIHOMO_CONFIG_FILE" != "$MIHOMO_DATA/config.yaml" ]; then
-      chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_CONFIG_FILE" || { log "ERROR" "Failed to chown: $MIHOMO_CONFIG_FILE"; return 1; }
+      chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_CONFIG_FILE" || err_exit "Failed to chown: $MIHOMO_CONFIG_FILE"
       if [ "$(stat -c '%u:%g' "$MIHOMO_CONFIG_FILE")" != "${PROXY_UID}:${PROXY_GID}" ]; then
-        log "ERROR" "Ownership verification failed for $MIHOMO_CONFIG_FILE"
-        return 1
+        err_exit "Ownership verification failed for $MIHOMO_CONFIG_FILE"
       fi
       log "DEBUG" "Successfully set ownership of $MIHOMO_CONFIG_FILE to ${PROXY_UID}:${PROXY_GID}"
     fi
@@ -148,7 +143,7 @@ create_secure_temp_file() {
   local temp_file old_umask max_attempts counter
   
   # Validate base directory
-  [ -d "$base_dir" ] || { log "ERROR" "Base directory does not exist: $base_dir"; return 1; }
+  [ -d "$base_dir" ] || err_exit "Base directory does not exist: $base_dir"
   
   old_umask=$(umask)
   umask 077
@@ -174,8 +169,7 @@ create_secure_temp_file() {
   
   if [ -z "$temp_file" ] || [ ! -f "$temp_file" ]; then
     umask "$old_umask"
-    log "ERROR" "Failed to create secure temp file in $base_dir after $max_attempts attempts"
-    return 1
+    err_exit "Failed to create secure temp file in $base_dir after $max_attempts attempts"
   fi
   
   umask "$old_umask"
@@ -183,8 +177,7 @@ create_secure_temp_file() {
   # Ensure permissions are secure
   chmod 0600 "$temp_file" || {
     rm -f "$temp_file" 2>/dev/null
-    log "ERROR" "Failed to set permissions on temp file"
-    return 1
+    err_exit "Failed to set permissions on temp file"
   }
   
   # Verify ownership and permissions
@@ -197,15 +190,13 @@ create_secure_temp_file() {
   
   if [ "$file_uid" != "$current_uid" ] || [ "$file_gid" != "$current_gid" ] || [ "$file_mode" != "600" ]; then
     rm -f "$temp_file" 2>/dev/null
-    log "ERROR" "Temp file has unexpected ownership or permissions"
-    return 1
+    err_exit "Temp file has unexpected ownership or permissions"
   fi
 
   # Verify temp file is regular file (not symlink)
   if [ ! -f "$temp_file" ] || [ -L "$temp_file" ]; then
     rm -f "$temp_file" 2>/dev/null
-    log "ERROR" "Temp file creation resulted in non-regular file"
-    return 1
+    err_exit "Temp file creation resulted in non-regular file"
   fi
 
   # Register temp file for cleanup
