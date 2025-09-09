@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ash
 
 # Connect the basic environment module
 . /usr/local/bin/modules/00-env.sh
