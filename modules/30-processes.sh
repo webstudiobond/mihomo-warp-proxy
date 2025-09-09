@@ -3,6 +3,72 @@
 [ -n "${MWP_PROCESSES_SH_LOADED:-}" ] && return 0
 MWP_PROCESSES_SH_LOADED=1
 
+# Helper: initialize lock for child process management
+init_child_pids_dir() {
+  if [ -z "$CHILD_PIDS_DIR" ]; then
+    CHILD_PIDS_DIR=$(mktemp -d "/tmp/mihomo_pids.XXXXXX") || err_exit "Failed to create child PIDs directory"
+    chmod 700 "$CHILD_PIDS_DIR"
+    TEMP_FILES="$TEMP_FILES $CHILD_PIDS_DIR"
+  fi
+  return 0
+}
+
+# Helper: POSIX-compliant child PID management using filesystem
+manage_child_pid() {
+  local operation="$1"
+  local pid="$2"
+  
+  [ -n "$CHILD_PIDS_DIR" ] || err_exit "Child PIDs directory not initialized"
+  
+  case "$operation" in
+    "add")
+      if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        if [ ! -f "$CHILD_PIDS_DIR/$pid" ]; then
+          touch "$CHILD_PIDS_DIR/$pid" 2>/dev/null && log "DEBUG" "Tracked child process: $pid"
+        fi
+      else
+        log "DEBUG" "Process $pid already terminated, not tracking"
+      fi
+      ;;
+    "remove")
+      if [ -f "$CHILD_PIDS_DIR/$pid" ]; then
+        rm -f "$CHILD_PIDS_DIR/$pid" 2>/dev/null && log "DEBUG" "Untracked child process: $pid"
+      fi
+      ;;
+    "clear")
+      rm -f "$CHILD_PIDS_DIR"/* 2>/dev/null && log "DEBUG" "Cleared all child processes"
+      ;;
+    "list")
+      if [ -d "$CHILD_PIDS_DIR" ]; then
+        ls "$CHILD_PIDS_DIR" 2>/dev/null | tr '\n' ' '
+      fi
+      ;;
+    "count")
+      if [ -d "$CHILD_PIDS_DIR" ]; then
+        ls "$CHILD_PIDS_DIR" 2>/dev/null | wc -l
+      else
+        echo 0
+      fi
+      ;;
+  esac
+}
+
+# Helper: Add child process to tracking list
+track_child_process() {
+  local pid="$1"
+  [ -n "$pid" ] || return 1
+  init_child_pids_dir || return 1
+  manage_child_pid "add" "$pid"
+}
+
+# Helper: Remove child process from tracking list
+untrack_child_process() {
+  local pid="$1"
+  [ -n "$pid" ] || return 1
+  init_child_pids_dir || return 1
+  manage_child_pid "remove" "$pid"
+}
+
 # Helper: terminate child processes efficiently
 terminate_child_processes() {
   local child_list signal_type timeout_sec
@@ -78,75 +144,6 @@ graceful_shutdown() {
   
   log "INFO" "Shutdown complete"
   exit $exit_code
-}
-
-# Helper: initialize lock for child process management
-init_child_pids_dir() {
-  if [ -z "$CHILD_PIDS_DIR" ]; then
-    CHILD_PIDS_DIR=$(mktemp -d "/tmp/mihomo_pids.XXXXXX") || {
-      log "ERROR" "Failed to create child PIDs directory"
-      return 1
-    }
-    chmod 700 "$CHILD_PIDS_DIR"
-    TEMP_FILES="$TEMP_FILES $CHILD_PIDS_DIR"
-  fi
-  return 0
-}
-
-# Helper: POSIX-compliant child PID management using filesystem
-manage_child_pid() {
-  local operation="$1"
-  local pid="$2"
-  
-  [ -n "$CHILD_PIDS_DIR" ] || { log "ERROR" "Child PIDs directory not initialized"; return 1; }
-  
-  case "$operation" in
-    "add")
-      if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-        if [ ! -f "$CHILD_PIDS_DIR/$pid" ]; then
-          touch "$CHILD_PIDS_DIR/$pid" 2>/dev/null && log "DEBUG" "Tracked child process: $pid"
-        fi
-      else
-        log "DEBUG" "Process $pid already terminated, not tracking"
-      fi
-      ;;
-    "remove")
-      if [ -f "$CHILD_PIDS_DIR/$pid" ]; then
-        rm -f "$CHILD_PIDS_DIR/$pid" 2>/dev/null && log "DEBUG" "Untracked child process: $pid"
-      fi
-      ;;
-    "clear")
-      rm -f "$CHILD_PIDS_DIR"/* 2>/dev/null && log "DEBUG" "Cleared all child processes"
-      ;;
-    "list")
-      if [ -d "$CHILD_PIDS_DIR" ]; then
-        ls "$CHILD_PIDS_DIR" 2>/dev/null | tr '\n' ' '
-      fi
-      ;;
-    "count")
-      if [ -d "$CHILD_PIDS_DIR" ]; then
-        ls "$CHILD_PIDS_DIR" 2>/dev/null | wc -l
-      else
-        echo 0
-      fi
-      ;;
-  esac
-}
-
-# Helper: Add child process to tracking list
-track_child_process() {
-  local pid="$1"
-  [ -n "$pid" ] || return 1
-  init_child_pids_dir || return 1
-  manage_child_pid "add" "$pid"
-}
-
-# Helper: Remove child process from tracking list
-untrack_child_process() {
-  local pid="$1"
-  [ -n "$pid" ] || return 1
-  init_child_pids_dir || return 1
-  manage_child_pid "remove" "$pid"
 }
 
 # Helper: Wait for child processes
