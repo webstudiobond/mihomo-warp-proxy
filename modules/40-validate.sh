@@ -161,45 +161,27 @@ validate_proxy_credentials() {
   fi
 }
 
-validate_warp_port() {
-  local value="$1"
-
-  case "$value" in
-    ''|*[!0-9]*)
-      err_exit "WARP PORT must be a valid number: $value"
-      ;;
-  esac
-
-  case "$value" in
-    500|1701|2408|4500) return 0 ;;
-    *)
-      err_exit "WARP PORT must be one of: 500, 1701, 2408, 4500 (got: $value)"
-      ;;
-  esac
-}
-
-# Helper function to validate WARP endpoint
+# Helper function to validate warp endpoint (server:port)
 validate_warp_endpoint() {
-  local endpoint="$1"
-  local host port
-  
-  case "$endpoint" in
-    *:*)
-      host=$(printf '%s' "$endpoint" | cut -d':' -f1)
-      port=$(printf '%s' "$endpoint" | cut -d':' -f2)
-      ;;
-    *) err_exit "WARP_ENDPOINT must contain host:port format: $endpoint" ;;
-  esac
-  
-  [ -n "$host" ] || err_exit "Invalid WARP_ENDPOINT host: $endpoint"
+    endpoint="$1"
 
-  validate_warp_port "$port"
-  
-  # Basic hostname validation
-  case "$host" in
-    *[[:space:]]*|*[[:cntrl:]]*) err_exit "WARP_ENDPOINT host contains invalid characters: $host" ;;
-    *..*|*-.|-*|*-) err_exit "WARP_ENDPOINT host format invalid: $host" ;;
-  esac
+    # host:port
+    host="${endpoint%:*}"
+    port="${endpoint##*:}"
+
+    # port
+    case "$port" in
+        2408|500|1701|4500) ;;
+        *) err_exit "Invalid WARP endpoint port: $port (allowed: 2408, 500, 1701, 2408, 4500)" ;;
+    esac
+
+    # engage.cloudflareclient.com — ок
+    if [ "$host" = "engage.cloudflareclient.com" ]; then
+        return 0
+    fi
+
+    # Everything else is prohibited.
+    err_exit "Invalid WARP endpoint host: $host (only engage.cloudflareclient.com allowed)"
 }
 
 # Helper function to validate DNS string
@@ -362,9 +344,9 @@ validate_amnezia_string_params() {
                 ;;
             esac
             wt_length="$num_part"
-            if [ "$wt_length" -lt 0 ]; then
+            if [ "$wt_length" -lt 0 ] || [ "$wt_length" -gt 5000 ]; then
               log "ERROR" "Invalid length in <wt> tag for $param_name: $wt_length"
-              err_exit "$param_name has invalid length in <wt> tag (must be >= 0)"
+              err_exit "$param_name has invalid length in <wt> tag (must be 0 to 5000)"
             fi
             tag="<wt $wt_length>"
             temp_value="${temp_value#"$tag"}"
@@ -456,8 +438,7 @@ validate_resolved_ips() {
 
   resolved_ips=$(resolve_hostname "$hostname")
   if [ -z "$resolved_ips" ]; then
-    log "ERROR" "No IPs resolved for hostname: $hostname — refusing (only external addresses allowed)"
-    return 1
+    err_exit "No IPs resolved for hostname: $hostname — refusing (only external addresses allowed)"
   fi
 
   # iterate without using a pipeline (so `return` works)
@@ -465,16 +446,14 @@ validate_resolved_ips() {
   printf '%s\n' "$resolved_ips" | sed '/^$/d' > "$tmpf"
   if [ ! -s "$tmpf" ]; then
     rm -f "$tmpf"
-    log "ERROR" "No IPs available after resolution for $hostname"
-    return 1
+    err_exit "No IPs available after resolution for $hostname"
   fi
 
   while IFS= read -r ip; do
     [ -n "$ip" ] || continue
     if is_restricted_ip "$ip"; then
       rm -f "$tmpf"
-      log "ERROR" "Hostname $hostname resolves to restricted IP: $ip"
-      return 1
+      err_exit "Hostname $hostname resolves to restricted IP: $ip"
     fi
   done < "$tmpf"
   rm -f "$tmpf"
@@ -518,27 +497,30 @@ validate_ipv6() {
   esac
 }
 
-# Validate WARP configuration parameters
-validate_warp_params() {
-  # Check if all required WARP variables are set and valid
-  [ -n "${WARP_IPV4:-}" ] || { log "ERROR" "WARP_IPV4 is not set"; return 1; }
-  [ -n "${WARP_IPV6:-}" ] || { log "ERROR" "WARP_IPV6 is not set"; return 1; }
-  [ -n "${WARP_PUBLIC_KEY:-}" ] || { log "ERROR" "WARP_PUBLIC_KEY is not set"; return 1; }
-  [ -n "${WARP_PRIVATE_KEY:-}" ] || { log "ERROR" "WARP_PRIVATE_KEY is not set"; return 1; }
+# Helper function to validate warp profile KEYs & IPs
+validate_warp_profile_params() {
+    log "DEBUG" "Validate WARP Private KEY"
+    # Проверка ключей
+    case "$WARP_PRIVATE_KEY" in
+        [A-Za-z0-9+/=]*) [ "${#WARP_PRIVATE_KEY}" -eq 44 ] || err_exit "Invalid WARP_PRIVATE_KEY length" ;;
+        *) err_exit "Invalid WARP_PRIVATE_KEY format" ;;
+    esac
 
-  validate_ipv4 "$WARP_IPV4"
+    log "DEBUG" "Validate WARP Public KEY"
+    case "$WARP_PUBLIC_KEY" in
+        [A-Za-z0-9+/=]*) [ "${#WARP_PUBLIC_KEY}" -eq 44 ] || err_exit "Invalid WARP_PUBLIC_KEY length" ;;
+        *) err_exit "Invalid WARP_PUBLIC_KEY format" ;;
+    esac
 
-  validate_ipv6 "$WARP_IPV6"
-  
-  # Validate key formats (base64)
-  case "$WARP_PRIVATE_KEY" in
-    *[^A-Za-z0-9+/=]*) log "ERROR" "Invalid WARP_PRIVATE_KEY format"; return 1 ;;
-  esac
-  case "$WARP_PUBLIC_KEY" in
-    *[^A-Za-z0-9+/=]*) log "ERROR" "Invalid WARP_PUBLIC_KEY format"; return 1 ;;
-  esac
-  
-  return 0
+    log "DEBUG" "Validate WARP IPv4"
+    if [ -n "$WARP_IPV4" ]; then
+        validate_ipv4 "$WARP_IPV4" || err_exit "Invalid WARP_IPV4: $WARP_IPV4"
+    fi
+
+    log "DEBUG" "Validate WARP IPv6"
+    if [ -n "$WARP_IPV6" ]; then
+        validate_ipv6 "$WARP_IPV6" || err_exit "Invalid WARP_IPV6: $WARP_IPV6"
+    fi
 }
 
 # Helper function to validate environment variables
@@ -551,6 +533,7 @@ validate_environment() {
   validate_path "$WGCF_DATA" "WGCF_DATA"
 
   # Validate credentials only if both are provided
+  log "DEBUG" "Validate PROXY_USER & PROXY_PASS"
   if [ -n "$PROXY_USER" ] && [ -n "$PROXY_PASS" ]; then
     validate_proxy_credentials "$PROXY_USER" "$PROXY_PASS"
   elif [ -n "$PROXY_USER" ] && [ -z "$PROXY_PASS" ]; then
@@ -560,28 +543,34 @@ validate_environment() {
   fi
   
   # Validate DNS configuration
+  log "DEBUG" "Validate WARP_DNS"
   if [ -n "$WARP_DNS" ]; then
     validate_dns_string "$WARP_DNS"
   fi
   
   # Validate numeric environment variables: port, uid, gid
+  log "DEBUG" "Validate PROXY_PORT"
   validate_numeric_env "PROXY_PORT" "$PROXY_PORT" 1 65535
 
   if [ -n "$PROXY_UID_ENV" ]; then
+    log "DEBUG" "Validate PROXY_UID"
     validate_numeric_env "PROXY_UID" "$PROXY_UID_ENV" 0 65535
   fi
 
   if [ -n "$PROXY_GID_ENV" ]; then
+    log "DEBUG" "Validate PROXY_GID"
     validate_numeric_env "PROXY_GID" "$PROXY_GID_ENV" 0 65535
   fi
   
   # Validate WARP endpoint
+  log "DEBUG" "Validate WARP_ENDPOINT"
   if [ -n "$WARP_ENDPOINT" ]; then
     validate_warp_endpoint "$WARP_ENDPOINT"
   fi
   
   # Validate Amnezia parameters if enabled
   if [ -n "$WARP_AMNEZIA" ]; then
+    log "DEBUG" "Validate WARP_AMNEZIA"
     if is_true "$WARP_AMNEZIA"; then
       validate_amnezia_params
     fi
