@@ -25,7 +25,7 @@ root_branch() {
   # Determine if MIHOMO_DATA is mounted from host by checking if owner matches PROXY_UID:PROXY_GID.
   # If MIHOMO_DATA is owned by PROXY_UID:PROXY_GID already => assume mapped/prepared; do not chown.
   if is_mounted_dir_owned_by "$MIHOMO_DATA" "$PROXY_UID" "$PROXY_GID"; then
-    log "DEBUG" "$MIHOMO_DATA already owned by ${PROXY_UID}:${PROXY_GID} — assuming mounted/prepared. Will drop to that user and download as unprivileged user."
+    log "DEBUG" "$MIHOMO_DATA already owned by ${PROXY_UID}:${PROXY_GID} — assuming mounted/prepared. Will drop to that user and working as unprivileged user."
     exec su-exec "${PROXY_UID}:${PROXY_GID}" "$0" "--run-as-user"
   fi
 
