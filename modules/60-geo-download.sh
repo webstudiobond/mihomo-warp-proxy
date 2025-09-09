@@ -27,13 +27,9 @@ follow_redirects_safe() {
       return 1
     fi
     if command -v curl >/dev/null 2>&1; then
-      headers=$(timeout 30 curl -fsSI --http1.1 --max-time 30 $auth_opt "$current_url" 2>/dev/null) || {
-        log "ERROR" "Failed to get headers for $current_url"
-        return 1
-      }
+      headers=$(timeout 30 curl -fsSI --http1.1 --max-time 30 $auth_opt "$current_url" 2>/dev/null) || err_exit "Failed to get headers for $current_url"
     else
-      log "ERROR" "No curl or wget available for headers"
-      return 1
+      err_exit "No curl or wget available for headers"
     fi
     if command -v curl >/dev/null 2>&1; then
       status=$(printf '%s' "$headers" | head -n1 | cut -d' ' -f2)
@@ -43,27 +39,23 @@ follow_redirects_safe() {
       location=$(printf '%s' "$headers" | grep '^  Location:' | cut -d' ' -f3- | tr -d '\r')
     fi
     if [ -z "$status" ] || [ "$status" -lt 200 ] || [ "$status" -ge 400 ]; then
-      log "ERROR" "Invalid HTTP status $status for $current_url in redirect chain"
-      return 1
+      err_exit "Invalid HTTP status $status for $current_url in redirect chain"
     fi
     if [ "$status" -lt 300 ]; then
       printf '%s\n%s' "$current_url" "$headers"
       return 0
     fi
     if [ -z "$location" ]; then
-      log "ERROR" "Redirect without Location header for $current_url"
-      return 1
+      err_exit "Redirect without Location header for $current_url"
     fi
     # Block dangerous percent-encodings and raw control chars in redirect Location
     case "$location" in
       *%00*|*%0a*|*%0A*|*%0d*|*%0D*|*%1b*|*%1B*|*%2e%2e*|*%2E%2E*|*%25*)
-        log "ERROR" "Redirect Location contains dangerous percent-encoding: $location"
-        return 1
+        err_exit "Redirect Location contains dangerous percent-encoding: $location"
         ;;
     esac
     if printf '%s' "$location" | LC_ALL=C grep -q '[[:cntrl:]]'; then
-      log "ERROR" "Redirect Location contains raw control characters: $location"
-      return 1
+      err_exit "Redirect Location contains raw control characters: $location"
     fi
     case "$location" in
       https://*) current_url="$location" ;;
@@ -79,8 +71,7 @@ follow_redirects_safe() {
     esac
     redir_count=$((redir_count + 1))
   done
-  log "ERROR" "Too many redirects for $url"
-  return 1
+  err_exit "Too many redirects for $url"
 }
 
 # Helper function to extract metadata from headers (ETag, Last-Modified, Content-Length, Content-Type)
@@ -166,7 +157,7 @@ download_file() {
       # Basic safety checks using POSIX-compatible syntax
       case "$url" in
         *"
-"*) log "ERROR" "URL contains newline: $url"; return 1 ;;
+"*) err_exit "URL contains newline: $url" ;;
         *" "*) log "WARN" "URL contains space: $url" ;;
       esac
       
@@ -177,27 +168,23 @@ download_file() {
       
       # Check for null bytes and validate host/port to prevent SSRF
       if printf '%s' "$url" | od -t x1 | grep -q ' 00 '; then
-        log "ERROR" "URL contains null bytes: $url"
-        return 1
+        err_exit "URL contains null bytes: $url"
       fi
       # Block dangerous percent-encodings and raw control chars in URL
       case "$url" in
         *%00*|*%0a*|*%0A*|*%0d*|*%0D*|*%1b*|*%1B*|*%2e%2e*|*%2E%2E*|*%25*)
-          log "ERROR" "URL contains dangerous percent-encoding: $url"
-          return 1
+          err_exit "URL contains dangerous percent-encoding: $url"
           ;;
       esac
       if printf '%s' "$url" | LC_ALL=C grep -q '[[:cntrl:]]'; then
-        log "ERROR" "URL contains raw control characters: $url"
-        return 1
+        err_exit "URL contains raw control characters: $url"
       fi
       # extract host_port (remove scheme and path), then strip userinfo, support [ipv6]
       tmp="${url#*://}"
       tmp="${tmp%%/*}"
       case "$tmp" in *@*) tmp="${tmp#*@}" ;; esac
       if [ -z "$tmp" ]; then
-        log "ERROR" "Invalid URL: no host part in $url"
-        return 1
+        err_exit "Invalid URL: no host part in $url"
       fi
       port=''  # initialize to empty to avoid "parameter not set"
       case "$tmp" in
@@ -205,20 +192,18 @@ download_file() {
         *) case "$tmp" in *:*) port="${tmp##*:}"; host="${tmp%:$port}";; *) host="$tmp";; esac;;
       esac
       host_lower=$(printf '%s' "$host" | tr 'A-Z' 'a-z')
-      [ -n "$host_lower" ] || { log "ERROR" "No host in URL: $url"; return 1; }
+      [ -n "$host_lower" ] || err_exit "ERROR" "No host in URL: $url"
       # make sure port is numeric (if set); if non-numeric, reset to empty
       case "$port" in ''|*[!0-9]*) port='' ;; esac
       
       # Enhanced hostname validation
       case "$host_lower" in
         localhost|*.local|127.*|::1|0.0.0.0|169.254.*)
-          log "ERROR" "Forbidden hostname: $host_lower"
-          return 1
+          err_exit "Forbidden hostname: $host_lower"
         ;;
         # Block encoded IPs and suspicious patterns  
         0x*|0[0-7][0-7][0-7]*|*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]*)
-          log "ERROR" "Suspicious encoded hostname: $host_lower"
-          return 1
+          err_exit "Suspicious encoded hostname: $host_lower"
         ;;
       esac
       
@@ -231,19 +216,16 @@ download_file() {
       if [ -n "$port" ]; then
         case "$port" in
           22|23|25|53|110|143|993|995|1433|1521|3306|3389|5432|5984|6379|8086|9200|9300|11211|27017)
-            log "ERROR" "Forbidden port (sensitive service): $port"
-            return 1
+            err_exit "Forbidden port (sensitive service): $port"
           ;;
           2375|2376|2377|2378)
-            log "ERROR" "Forbidden port (Docker API): $port"
-            return 1
+            err_exit "Forbidden port (Docker API): $port"
           ;;
         esac
       fi
       ;;
     *)  
-      log "ERROR" "Invalid URL scheme — only HTTPS is allowed: $url"
-      return 1  
+      err_exit "Invalid URL scheme — only HTTPS is allowed: $url"
       ;;
   esac
 
@@ -289,10 +271,7 @@ download_file() {
   
   log "DEBUG" "Downloading $url -> $dst"
 
-  tmp_dst=$(create_secure_temp_file "$(dirname "$dst")" "download") || { 
-    log "ERROR" "Failed to create temp file for $dst"
-    return 1 
-  }
+  tmp_dst=$(create_secure_temp_file "$(dirname "$dst")" "download") || err_exit "Failed to create temp file for $dst"
 
   if command -v curl >/dev/null 2>&1; then
     (ulimit -v 131072; timeout 300 curl -fsS --http1.1 \
@@ -307,11 +286,10 @@ download_file() {
       untrack_child_process "$download_pid"
       rm -f "$tmp_dst"
       if [ "$auth_attempted" -eq 0 ] && [ -n "$(curl -I -s -w "%{http_code}" "$url" | grep '^401')" ]; then
-        log "ERROR" "Download failed: Authentication required but GEO_AUTH_USER/GEO_AUTH_PASS not set for $url"
+        err_exit "Download failed: Authentication required but GEO_AUTH_USER/GEO_AUTH_PASS not set for $url"
       else
-        log "ERROR" "Failed to download $url using curl"
+        err_exit "Failed to download $url using curl"
       fi
-      return 1
     fi
   else
     rm -f "$tmp_dst"
@@ -320,16 +298,14 @@ download_file() {
   
   # Verify file size and basic format
   if [ ! -s "$tmp_dst" ]; then
-    log "ERROR" "Downloaded file is empty: $url"
     rm -f "$tmp_dst"
-    return 1
+    err_exit "Downloaded file is empty: $url"
   fi
   
   file_size=$(stat -c%s "$tmp_dst" 2>/dev/null || stat -f%z "$tmp_dst" 2>/dev/null || echo "0")
   if [ "$file_size" -gt 104857600 ]; then  # 100MB limit
-    log "ERROR" "Downloaded file too large: $file_size bytes from $url"
     rm -f "$tmp_dst"
-    return 1
+    err_exit "Downloaded file too large: $file_size bytes from $url"
   fi
   
   mv "$tmp_dst" "$dst" || { rm -f "$tmp_dst"; return 1; }
@@ -344,16 +320,16 @@ prepare_geo_files() {
   local bg_pids
   local exit_code=0
   
-  (download_file "$GEO_URL_GEOIP" "$GEOIP_DST" || { log "ERROR" "Failed to download geoip: $GEO_URL_GEOIP"; exit 1; }) &
+  (download_file "$GEO_URL_GEOIP" "$GEOIP_DST" || err_exit "Failed to download geoip: $GEO_URL_GEOIP") &
   pid1=$!; bg_pids="$pid1"; track_child_process "$pid1"
   
-  (download_file "$GEO_URL_GEOSITE" "$GEOSITE_DST" || { log "ERROR" "Failed to download geosite: $GEO_URL_GEOSITE"; exit 1; }) &
+  (download_file "$GEO_URL_GEOSITE" "$GEOSITE_DST" || err_exit "Failed to download geosite: $GEO_URL_GEOSITE") &
   pid2=$!; bg_pids="$bg_pids $pid2"; track_child_process "$pid2"
   
-  (download_file "$GEO_URL_MMDB" "$MMDB_DST" || { log "ERROR" "Failed to download mmdb: $GEO_URL_MMDB"; exit 1; }) &
+  (download_file "$GEO_URL_MMDB" "$MMDB_DST" || err_exit "Failed to download mmdb: $GEO_URL_MMDB") &
   pid3=$!; bg_pids="$bg_pids $pid3"; track_child_process "$pid3"
   
-  (download_file "$GEO_URL_ASN" "$ASN_DST" || { log "ERROR" "Failed to download asn: $GEO_URL_ASN"; exit 1; }) &
+  (download_file "$GEO_URL_ASN" "$ASN_DST" || err_exit "Failed to download asn: $GEO_URL_ASN") &
   pid4=$!; bg_pids="$bg_pids $pid4"; track_child_process "$pid4"
   
   if ! safe_wait $bg_pids; then
