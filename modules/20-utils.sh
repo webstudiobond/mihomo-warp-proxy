@@ -3,6 +3,35 @@
 [ -n "${MWP_UTILS_SH_LOADED:-}" ] && return 0
 MWP_UTILS_SH_LOADED=1
 
+# Portable stat wrapper: usage stat_safe '<format>' path
+# Tries GNU stat -c, then BSD stat -f; prints result on stdout and returns 0 on success, 1 on failure.
+stat_safe() {
+    fmt=$1; shift
+    # Try GNU stat
+    if stat -c "$fmt" "$@" >/dev/null 2>&1; then
+        stat -c "$fmt" "$@" 2>/dev/null || return 1
+        return 0
+    fi
+    # Try BSD stat
+    if stat -f "$fmt" "$@" >/dev/null 2>&1; then
+        stat -f "$fmt" "$@" 2>/dev/null || return 1
+        return 0
+    fi
+    return 1
+}
+
+# Portable chown wrapper: tries 'chown -h' to affect symlink, falls back to 'chown'
+chown_safe() {
+    # Pass through all args to chown variants
+    if chown -h "$@" >/dev/null 2>&1; then
+        return 0
+    fi
+    if chown "$@" >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 # Helper: function to check prerequisites
 check_prerequisites() {
   [ -x "$MIHOMO_BIN" ] || err_exit "mihomo binary not found or not executable: $MIHOMO_BIN"
@@ -53,6 +82,7 @@ can_write_dir() {
 
 # Helper: who owned mounted directory
 is_mounted_dir_owned_by() {
+  log "DEBUG" "Check who owned mounted directory"
   # returns 0 if filesystem owner of directory equals given uid:gid (approximate check via stat)
   dir="$1"
   uid="$2"
@@ -61,7 +91,7 @@ is_mounted_dir_owned_by() {
     return 1
   fi
   
-  stat_output=$(stat -c '%u %g' "$dir" 2>/dev/null || stat -f '%u %g' "$dir" 2>/dev/null || echo "")
+  stat_output=$(stat_safe '%u %g' "$dir" 2>/dev/null || echo "")
   st_uid=$(echo "$stat_output" | cut -d' ' -f1)
   st_gid=$(echo "$stat_output" | cut -d' ' -f2)
   [ "$st_uid" = "$uid" ] && [ "$st_gid" = "$gid" ]
@@ -84,20 +114,25 @@ ensure_writable_dir() {
 chown_image_dirs_to_proxy() {
   # Set ownership for internal files and directories
   log "DEBUG" "Setting ownership of internal directories and files to ${PROXY_UID}:${PROXY_GID}"
+
   if [ -d "$MIHOMO_DATA" ]; then
-    chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA" || err_exit "Failed to chown: $MIHOMO_DATA"
-    if [ "$(stat -c '%u:%g' "$MIHOMO_DATA")" != "${PROXY_UID}:${PROXY_GID}" ]; then
+
+    chown_safe "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA" || err_exit "Failed to chown: $MIHOMO_DATA"
+
+    if [ "$(stat_safe '%u:%g' "$MIHOMO_DATA" 2>/dev/null || echo "")" != "${PROXY_UID}:${PROXY_GID}" ]; then
       err_exit "Ownership verification failed for $MIHOMO_DATA"
     fi
+
     for file in cache.db config.yaml config.yaml.back geoip.dat geoip.metadb GeoLite2-ASN.mmdb geosite.dat; do
       if [ -f "$MIHOMO_DATA/$file" ]; then
-        chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA/$file" || err_exit "Failed to chown: $MIHOMO_DATA/$file"
-        if [ "$(stat -c '%u:%g' "$MIHOMO_DATA/$file")" != "${PROXY_UID}:${PROXY_GID}" ]; then
+        chown_safe "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_DATA/$file" || err_exit "Failed to chown: $MIHOMO_DATA/$file"
+        if [ "$(stat_safe '%u:%g' "$MIHOMO_DATA/$file" 2>/dev/null || echo "")" != "${PROXY_UID}:${PROXY_GID}" ]; then
           err_exit "Ownership verification failed for $MIHOMO_DATA/$file"
         fi
         log "DEBUG" "Successfully set ownership of $MIHOMO_DATA/$file to ${PROXY_UID}:${PROXY_GID}"
       fi
     done
+
     log "DEBUG" "Successfully set ownership of $MIHOMO_DATA to ${PROXY_UID}:${PROXY_GID}"
   else
     log "WARN" "Directory $MIHOMO_DATA does not exist"
@@ -106,14 +141,14 @@ chown_image_dirs_to_proxy() {
   # Ensure wgcf directory exists and has correct ownership
   mkdir -p "$WGCF_DATA" 2>/dev/null || { log "WARN" "Failed to mkdir: $WGCF_DATA"; }
   if [ -d "$WGCF_DATA" ]; then
-    chown -h "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA" || err_exit "Failed to chown: $WGCF_DATA"
-    if [ "$(stat -c '%u:%g' "$WGCF_DATA")" != "${PROXY_UID}:${PROXY_GID}" ]; then
+    chown_safe "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA" || err_exit "Failed to chown: $WGCF_DATA"
+    if [ "$(stat_safe '%u:%g' "$WGCF_DATA" 2>/dev/null || echo "")" != "${PROXY_UID}:${PROXY_GID}" ]; then
       err_exit "Ownership verification failed for $WGCF_DATA"
     fi
     for file in wgcf-account.toml wgcf-profile.conf; do
       if [ -f "$WGCF_DATA/$file" ]; then
-        chown -h "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA/$file" || err_exit "Failed to chown: $WGCF_DATA/$file"
-        if [ "$(stat -c '%u:%g' "$WGCF_DATA/$file")" != "${PROXY_UID}:${PROXY_GID}" ]; then
+        chown_safe "${PROXY_UID}:${PROXY_GID}" "$WGCF_DATA/$file" || err_exit "Failed to chown: $WGCF_DATA/$file"
+        if [ "$(stat_safe '%u:%g' "$WGCF_DATA/$file" 2>/dev/null || echo "")" != "${PROXY_UID}:${PROXY_GID}" ]; then
           err_exit "Ownership verification failed for $WGCF_DATA/$file"
         fi
         log "DEBUG" "Successfully set ownership of $WGCF_DATA/$file to ${PROXY_UID}:${PROXY_GID}"
@@ -127,8 +162,8 @@ chown_image_dirs_to_proxy() {
   # Only chown config file if it's not in a mounted directory
   if [ -f "$MIHOMO_CONFIG_FILE" ] && can_write_dir "$(dirname "$MIHOMO_CONFIG_FILE")"; then
     if [ "$MIHOMO_CONFIG_FILE" != "$MIHOMO_DATA/config.yaml" ]; then
-      chown -h "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_CONFIG_FILE" || err_exit "Failed to chown: $MIHOMO_CONFIG_FILE"
-      if [ "$(stat -c '%u:%g' "$MIHOMO_CONFIG_FILE")" != "${PROXY_UID}:${PROXY_GID}" ]; then
+      chown_safe "${PROXY_UID}:${PROXY_GID}" "$MIHOMO_CONFIG_FILE" || err_exit "Failed to chown: $MIHOMO_CONFIG_FILE"
+      if [ "$(stat_safe '%u:%g' "$MIHOMO_CONFIG_FILE" 2>/dev/null || echo "")" != "${PROXY_UID}:${PROXY_GID}" ]; then
         err_exit "Ownership verification failed for $MIHOMO_CONFIG_FILE"
       fi
       log "DEBUG" "Successfully set ownership of $MIHOMO_CONFIG_FILE to ${PROXY_UID}:${PROXY_GID}"
@@ -184,9 +219,9 @@ create_secure_temp_file() {
   current_uid=$(id -u)
   current_gid=$(id -g)
 
-  file_uid=$(stat -c %u "$temp_file" 2>/dev/null || stat -f %u "$temp_file" 2>/dev/null || echo "")
-  file_gid=$(stat -c %g "$temp_file" 2>/dev/null || stat -f %g "$temp_file" 2>/dev/null || echo "")
-  file_mode=$(stat -c %a "$temp_file" 2>/dev/null || stat -f %Lp "$temp_file" 2>/dev/null || echo "")
+  file_uid=$(stat_safe %u "$temp_file" 2>/dev/null || echo "")
+  file_gid=$(stat_safe %g "$temp_file" 2>/dev/null || echo "")
+  file_mode=$(stat_safe %a "$temp_file" 2>/dev/null || echo "")
   
   if [ "$file_uid" != "$current_uid" ] || [ "$file_gid" != "$current_gid" ] || [ "$file_mode" != "600" ]; then
     rm -f "$temp_file" 2>/dev/null
