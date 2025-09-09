@@ -302,7 +302,7 @@ download_file() {
     err_exit "Downloaded file is empty: $url"
   fi
   
-  file_size=$(stat -c%s "$tmp_dst" 2>/dev/null || stat -f%z "$tmp_dst" 2>/dev/null || echo "0")
+  file_size=$(stat_safe '%s' "$tmp_dst" 2>/dev/null || echo "")
   if [ "$file_size" -gt 104857600 ]; then  # 100MB limit
     rm -f "$tmp_dst"
     err_exit "Downloaded file too large: $file_size bytes from $url"
