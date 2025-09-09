@@ -128,7 +128,7 @@ parse_warp_profile() {
 
     [ -f "$PROFILE_FILE" ] || err_exit "WARP profile not found: $PROFILE_FILE"
 
-    perms=$(stat -c "%a" "$PROFILE_FILE" 2>/dev/null || stat -f "%Lp" "$PROFILE_FILE")
+    perms=$(stat_safe '%a' "$PROFILE_FILE" 2>/dev/null || echo "")
     case "$perms" in
         600|400) ;; 
         *) err_exit "Unsafe permissions on WARP profile: $perms (expected 600 or 400)" ;;
