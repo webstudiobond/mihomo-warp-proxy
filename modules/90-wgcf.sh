@@ -42,8 +42,8 @@ generate_profile() {
         err_exit "Failed to generate wgcf profile"
     fi
     
-    if [ ! -f "$PROFILE_FILE" ]; then
-        err_exit "Profile file not created: $PROFILE_FILE"
+    if [ ! -f "$WGCF_PROFILE_FILE" ]; then
+        err_exit "Profile file not created: $WGCF_PROFILE_FILE"
     fi
 }
 
@@ -61,8 +61,8 @@ fi
 cd "$WGCF_DATA" || err_exit "Cannot change to wgcf directory: $WGCF_DATA"
 
 # Main logic for handling different scenarios
-account_exists=$([ -f "$ACCOUNT_FILE" ] && echo "true" || echo "false")
-profile_exists=$([ -f "$PROFILE_FILE" ] && echo "true" || echo "false")
+account_exists=$([ -f "$WGCF_ACCOUNT_FILE" ] && echo "true" || echo "false")
+profile_exists=$([ -f "$WGCF_PROFILE_FILE" ] && echo "true" || echo "false")
 
 log "DEBUG" "WARP enabled, checking configuration..."
 log "DEBUG" "Account file exists: $account_exists"
@@ -73,7 +73,7 @@ if [ "$account_exists" = "true" ] && [ "$profile_exists" = "true" ]; then
     # Both files exist
     if is_true "$WARP_REGENERATE"; then
         log "DEBUG" "WARP_REGENERATE=true, regenerating account and profile"
-        rm -f "$ACCOUNT_FILE" "$PROFILE_FILE"
+        rm -f "$WGCF_ACCOUNT_FILE" "$WGCF_PROFILE_FILE"
         register_account
         generate_profile
     else
@@ -97,13 +97,13 @@ elif [ "$account_exists" = "false" ]; then
 fi
 
 # Verify final state
-if [ ! -f "$ACCOUNT_FILE" ] || [ ! -f "$PROFILE_FILE" ]; then
+if [ ! -f "$WGCF_ACCOUNT_FILE" ] || [ ! -f "$WGCF_PROFILE_FILE" ]; then
     err_exit "Failed to create required wgcf files"
 fi
 
 log "DEBUG" "wgcf configuration completed successfully"
 
 # Set appropriate permissions for generated files
-chmod 0600 "$ACCOUNT_FILE" "$PROFILE_FILE" 2>/dev/null || { log "WARN" "Failed to chmod files: $ACCOUNT_FILE and $PROFILE_FILE"; }
+chmod 0600 "$WGCF_ACCOUNT_FILE" "$WGCF_PROFILE_FILE" 2>/dev/null || { log "WARN" "Failed to chmod files: $WGCF_ACCOUNT_FILE and $WGCF_PROFILE_FILE"; }
 
 update_mihomo_config_for_warp
