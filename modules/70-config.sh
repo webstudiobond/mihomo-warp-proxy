@@ -82,6 +82,7 @@ proxies:
     mtu: 1280
     remote-dns-resolve: true
     dns: $DNS_YAML
+    refresh-server-ip-interval: 60
 EOF
     if is_true "$WARP_AMNEZIA"; then
 
@@ -92,6 +93,8 @@ EOF
       jmax: $WARP_AMNEZIA_JMAX
       s1: 0
       s2: 0
+      s3: 0
+      s4: 0
       h1: 1
       h2: 2
       h3: 3
