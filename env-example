@@ -1,0 +1,76 @@
+# Time zone
+TZ="UTC"
+
+# Script log level: DEBUG, INFO, WARN, ERROR
+SCRIPT_LOG_LEVEL=ERROR
+# Proxy log level
+# silent - Silent, no output.
+# error - Outputs logs of errors and unusable logs.
+# warning - Outputs logs of errors that do not affect operations, and logs of error level.
+# info - Outputs general operational logs, as well as logs of error and warning levels.
+# debug - Outputs as much information as possible during runtime.
+PROXY_LOG_LEVEL=error
+
+# If you run the docker container under a privileged root user, the permissions inside the container will be downgraded to run processes under a non-privileged user with those UID and GID
+PROXY_UID=911
+PROXY_GID=911
+
+# Mixed SOCKS/HTTP(S) proxy port
+PROXY_PORT=17890
+
+# Proxy authentication
+# Create a unique user. For example, this can be done using `pwgen -s 64 1`
+PROXY_USER="J2GffkspdU9CGLiOBr61HEwTZs821zTP8wDavuwdqVfkxmWavlowy7FbaZFG1nSn"
+# Create a unique password. For example, this can be done using `pwgen -s 128 1`
+PROXY_PASS="fWyPsNXZeD1f0vYGayFx0sNxhj18lIoDSiyrkmenUtfMyRUGZX0cijlLWOv2GAMwFyYa034l6DkupHLwwuJZ96vZbvs4Xc9MAs2XcBQ9ZnLD0QJlVKWFyTIAtZ0pvxOJ"
+
+# GEO: true or false.
+# If true, then when the container starts, geodata is downloaded (if it has not changed since the last download).
+# This also adds a block with geodata to the mihomo configuration file.
+GEO=true
+# GEO_REDOWNLOAD: true or false. If true, will re-download the geodata.
+GEO_REDOWNLOAD=false
+# Links to geodata
+GEO_URL_GEOIP="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
+GEO_URL_GEOSITE="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+GEO_URL_MMDB="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb"
+GEO_URL_ASN="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb"
+# Use if you need authorization to access geodata.
+GEO_AUTH_USER=
+GEO_AUTH_PASS=
+
+# WGCF WARP
+# If `USE_WARP_CONFIG=true`, the `wgcf` utility is used to create a wireguard profile, and a minimal configuration file for the `mihomo` kernel is created.
+USE_WARP_CONFIG=true
+# If you want to force regenerate warp profile, set `WARP_REGENERATE` to true.
+WARP_REGENERATE=false
+# Not tested, but we assume that if the key is filled in, it should update the warp account using your key and recreate the profile for warp+
+WARP_PLUS_KEY=""
+# endpoint server:port
+# one of these UDP ports: 2408, 500, 4500, 1701
+WARP_ENDPOINT="engage.cloudflareclient.com:500"
+# DNS for warp. You can specify IPv4, IPv6, https://, tls:// or quic://.
+WARP_DNS="1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001"
+## AmneziaWG. For documentation, see the developers website: https://docs.amnezia.org/documentation/amnezia-wg/
+WARP_AMNEZIA=true
+## Junk packet count: 1-128
+WARP_AMNEZIA_JC=5
+## Junk packet minimum size < jmax
+WARP_AMNEZIA_JMIN=7
+## Junk packet maximum size <= 1280
+WARP_AMNEZIA_JMAX=15
+## AmneziaWG v1.5 variables
+# <b hex_data> Static bytes to emulate protocols. Arbitrary length
+# <c> Packet counter (32-bit, network byte order) Unique within the sequence
+# <t> Unix timestamp (32-bit, network byte order) Unique within the sequence
+# <r length> Cryptographically secure random bytes length <= 1000
+# <wt length> length <= 5000
+WARP_AMNEZIA_I1="<b 0xf6ab3267fa><c><b 0xf6ab><t><r 10><wt 10>"
+WARP_AMNEZIA_I2="<b 0xf6ab3267fa><r 100>"
+WARP_AMNEZIA_I3=""
+WARP_AMNEZIA_I4=""
+WARP_AMNEZIA_I5=""
+WARP_AMNEZIA_J1="<b 0xffffffff><c><b 0xf6ab><t><r 10>"
+WARP_AMNEZIA_J2="<c><b 0xf6ab><t><wt 1000>"
+WARP_AMNEZIA_J3="<t><b 0xf6ab><c><r 10>"
+WARP_AMNEZIA_ITIME=60
