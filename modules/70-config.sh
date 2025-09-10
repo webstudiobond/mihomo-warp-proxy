@@ -42,6 +42,8 @@ log-level: $PROXY_LOG_LEVEL
 authentication:
 - "$PROXY_USER:$PROXY_PASS"
 secret: ""
+disable-keep-alive: false
+keep-alive-idle: 15
 keep-alive-interval: 25
 global-client-fingerprint: chrome
 EOF
