@@ -134,7 +134,6 @@ escape_for_yq() {
 }
 
 parse_warp_profile() {
-    # profile_file="$WGCF_DATA/wgcf-profile.conf"
     PROFILE_FILE="$WGCF_PROFILE_FILE"
 
     log "DEBUG" "Parse warp profile: $PROFILE_FILE"
@@ -147,27 +146,62 @@ parse_warp_profile() {
         *) err_exit "Unsafe permissions on WARP profile: $perms (expected 600 or 400)" ;;
     esac
 
-    kv() {
-    # Validate config key to prevent injection
-    case "$1" in
-      *[^a-zA-Z0-9_-]*) err_exit "Invalid config key: $1" ;;
-    esac
-    sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$PROFILE_FILE" | head -n1
+    # Extract value from INI file taking into account sections
+    extract_ini_value() {
+        section="$1"
+        key="$2"
+        
+        # Input parameter validation - only safe characters
+        case "$section" in
+            *[^a-zA-Z0-9_-]*) err_exit "Invalid section name: $section" ;;
+        esac
+        case "$key" in
+            *[^a-zA-Z0-9_-]*) err_exit "Invalid key name: $key" ;;
+        esac
+        
+        # Escaping special characters for sed
+        escaped_section=$(printf '%s' "$section" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        escaped_key=$(printf '%s' "$key" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        
+        # Extracting value only from the required section
+        sed -n "
+            /^\[$escaped_section\]/,/^\[.*\]/{
+                /^\[$escaped_section\]/d
+                /^\[.*\]/d
+                s/^[[:space:]]*$escaped_key[[:space:]]*=[[:space:]]*//p
+            }
+        " "$PROFILE_FILE" | head -n1
     }
 
-    WARP_PRIVATE_KEY="$(kv PrivateKey | tr -d '\r\n')"
-    WARP_PUBLIC_KEY="$(kv PublicKey | tr -d '\r\n')"
-    WARP_ADDRESS="$(kv Address | tr -d ' \t\r\n')"
+    # One-time reading and parsing of all required values
+    WARP_PRIVATE_KEY=$(extract_ini_value "Interface" "PrivateKey")
+    WARP_PUBLIC_KEY=$(extract_ini_value "Peer" "PublicKey") 
+    WARP_ADDRESS=$(extract_ini_value "Interface" "Address")
 
-    WARP_IPV4=$(printf '%s' "$WARP_ADDRESS" | cut -d',' -f1 | cut -d'/' -f1 | tr -d ' \t\r\n')
-    WARP_IPV6=$(printf '%s' "$WARP_ADDRESS" | cut -d',' -f2 | cut -d'/' -f1 | tr -d ' \t\r\n')
+    # Safe cleanup of control characters only (keep base64 padding)
+    WARP_PRIVATE_KEY=$(printf '%s' "$WARP_PRIVATE_KEY" | tr -d '\r\n\t')
+    WARP_PUBLIC_KEY=$(printf '%s' "$WARP_PUBLIC_KEY" | tr -d '\r\n\t')
+    WARP_ADDRESS=$(printf '%s' "$WARP_ADDRESS" | tr -d ' \t\r\n')
 
-    WARP_SERVER=$(printf '%s' "$WARP_ENDPOINT" | cut -d':' -f1)
-    WARP_PORT=$(printf '%s' "$WARP_ENDPOINT" | cut -d':' -f2)
+    # Extract IPv4 and IPv6 from Address using parameter expansion where possible
+    # Remove spaces and separate by comma
+    addr_clean="$WARP_ADDRESS"
+    
+    # Extract IPv4 (up to the first comma)
+    WARP_IPV4="${addr_clean%%,*}"
+    WARP_IPV4="${WARP_IPV4%%/*}"  # Remove the CIDR mask
+    
+    # Extract IPv6 (after the first comma)
+    addr_remaining="${addr_clean#*,}"
+    WARP_IPV6="${addr_remaining%%/*}"  # Remove the CIDR mask
 
-    # Проверка, что данные вообще найдены
+    # Parsing endpoint (already validated)
+    WARP_SERVER="${WARP_ENDPOINT%:*}"
+    WARP_PORT="${WARP_ENDPOINT##*:}"
+
+    # Checking the availability of mandatory data
     [ -n "$WARP_PRIVATE_KEY" ] || err_exit "WARP_PRIVATE_KEY not found in profile: $PROFILE_FILE"
-    [ -n "$WARP_PUBLIC_KEY" ]  || err_exit "WARP_PUBLIC_KEY not found in profile: $PROFILE_FILE"
+    [ -n "$WARP_PUBLIC_KEY" ] || err_exit "WARP_PUBLIC_KEY not found in profile: $PROFILE_FILE"
     [ -n "$WARP_IPV4" ] || err_exit "Could not extract IPv4 address from wgcf profile: $PROFILE_FILE"
     [ -n "$WARP_IPV6" ] || err_exit "Could not extract IPv6 address from wgcf profile: $PROFILE_FILE"
     [ -n "$WARP_SERVER" ] || err_exit "Could not extract server from WARP_ENDPOINT: $WARP_ENDPOINT"
