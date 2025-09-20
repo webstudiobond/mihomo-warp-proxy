@@ -34,7 +34,7 @@ create_mihomo_template_config() {
   
   cat > "$MIHOMO_CONFIG_FILE" << EOF
 mode: rule
-ipv6: true
+ipv6: $USE_IP6
 bind-address: "*"
 mixed-port: $PROXY_PORT
 allow-lan: true
@@ -218,10 +218,11 @@ update_basic_config_fields() {
   temp_dir=$(dirname "$config_file")
   
   # Validate and escape input values
-  local escaped_log_level escaped_user escaped_pass
+  local escaped_log_level escaped_user escaped_pass escaped_use_ip6
   escaped_log_level=$(escape_for_yq "$PROXY_LOG_LEVEL")
   escaped_user=$(escape_for_yq "$PROXY_USER")
   escaped_pass=$(escape_for_yq "$PROXY_PASS")
+  escaped_use_ip6=$(escape_for_yq "$USE_IP6")
   
   # Create secure temp file for authentication
   temp_auth_file_secure=$(create_secure_temp_file "$temp_dir" "auth") || return 1
@@ -241,7 +242,7 @@ update_basic_config_fields() {
   }
   
   # Update basic fields atomically
-  if ! (timeout 30 yq -i ".log-level = \"$escaped_log_level\" | .mixed-port = $PROXY_PORT" "$config_file"); then
+  if ! (timeout 30 yq -i ".ipv6 = $escaped_use_ip6 | .log-level = \"$escaped_log_level\" | .mixed-port = $PROXY_PORT" "$config_file"); then
     remove_temp_file "$temp_auth_file"
     err_exit "Failed to update basic config fields"
   fi

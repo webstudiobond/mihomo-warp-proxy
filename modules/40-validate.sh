@@ -101,6 +101,34 @@ validate_numeric_env() {
   fi
 }
 
+# Helper function to validate boolian environment variables
+validate_bool_env() {
+  local var_name="$1"
+  local value="$2"
+  
+  case "$value" in
+    true|false|1|0)
+      ;;
+    *) 
+      err_exit "Invalid $var_name value: '$value' (allowed: true, false, 1, 0)"
+      ;;
+  esac
+}
+
+# Helper function to validate PROXY_LOG_LEVEL
+validate_proxy_log_level_env() {
+  local var_name="$1"
+  local value="$2"
+  
+  case "$value" in
+    silent|error|warning|info|debug)
+      ;;
+    *) 
+      err_exit "Invalid $var_name value: '$value' (allowed: silent, error, warning, info, debug)"
+      ;;
+  esac
+}
+
 # Helper function to validate DNS entry format
 is_valid_dns() {
   local dns="$1"
@@ -532,6 +560,10 @@ validate_environment() {
   validate_path "$MIHOMO_CONFIG_FILE" "MIHOMO_CONFIG_FILE"
   validate_path "$WGCF_DATA" "WGCF_DATA"
 
+  # Validate PROXY_LOG_LEVEL
+  log "DEBUG" "Validate PROXY_LOG_LEVEL"
+  validate_proxy_log_level_env "PROXY_LOG_LEVEL" "$PROXY_LOG_LEVEL"
+
   # Validate credentials only if both are provided
   log "DEBUG" "Validate PROXY_USER & PROXY_PASS"
   if [ -n "$PROXY_USER" ] && [ -n "$PROXY_PASS" ]; then
@@ -541,6 +573,22 @@ validate_environment() {
   elif [ -z "$PROXY_USER" ] && [ -n "$PROXY_PASS" ]; then
     err_exit "PROXY_USER must be set when PROXY_PASS is provided"
   fi
+
+  # Validate boll environment variables
+  log "DEBUG" "Validate MULTI_USER_MODE"
+  validate_bool_env "MULTI_USER_MODE" "$MULTI_USER_MODE"
+  log "DEBUG" "Validate USE_IP6"
+  validate_bool_env "USE_IP6" "$USE_IP6"
+  log "DEBUG" "Validate GEO"
+  validate_bool_env "GEO" "$GEO"
+  log "DEBUG" "Validate GEO_REDOWNLOAD"
+  validate_bool_env "GEO_REDOWNLOAD" "$GEO_REDOWNLOAD"
+  log "DEBUG" "Validate USE_WARP_CONFIG"
+  validate_bool_env "USE_WARP_CONFIG" "$USE_WARP_CONFIG"
+  log "DEBUG" "Validate WARP_REGENERATE"
+  validate_bool_env "WARP_REGENERATE" "$WARP_REGENERATE"
+  log "DEBUG" "Validate WARP_AMNEZIA"
+  validate_bool_env "WARP_AMNEZIA" "$WARP_AMNEZIA"
   
   # Validate DNS configuration
   log "DEBUG" "Validate WARP_DNS"

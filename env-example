@@ -24,6 +24,9 @@ PROXY_USER="J2GffkspdU9CGLiOBr61HEwTZs821zTP8wDavuwdqVfkxmWavlowy7FbaZFG1nSn"
 # Create a unique password. For example, this can be done using `pwgen -s 128 1`
 PROXY_PASS="fWyPsNXZeD1f0vYGayFx0sNxhj18lIoDSiyrkmenUtfMyRUGZX0cijlLWOv2GAMwFyYa034l6DkupHLwwuJZ96vZbvs4Xc9MAs2XcBQ9ZnLD0QJlVKWFyTIAtZ0pvxOJ"
 
+# USE_IP6: true or false
+USE_IP6=true
+
 # GEO: true or false.
 # If true, then when the container starts, geodata is downloaded (if it has not changed since the last download).
 # This also adds a block with geodata to the mihomo configuration file.
