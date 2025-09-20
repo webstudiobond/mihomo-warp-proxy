@@ -37,6 +37,8 @@ services:
       PROXY_USER: ${PROXY_USER:-3N0fcYvmrmtdaPnF5cpFgF1Pn3hh5ahjfgpF5Fj0HsNT0QwIMuOJTAYEryKeRgVY}
       # pwgen -s 128 1
       PROXY_PASS: ${PROXY_PASS:-DBKNe9VmXacQqvyGz1e1EZWVNMRLM40r1ZLOMKlazKiWtRY7JAchNR0zC2UGIL26KvkowqhTROiZ5Tr54mrOjZTn0NSiUuSUHYWcONFqu6hnv5G6P2cjwkZMOq203i3i}
+      # ipv6 param must be true or false
+      USE_IP6: ${USE_IP6:-true}
       # Whether the geodata should be downloaded at container startup (downloading will only occur if the data has changed)
       GEO: ${GEO:-false}
       # Forced download of geodata

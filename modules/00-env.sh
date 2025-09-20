@@ -53,6 +53,9 @@ readonly GEO_URL_GEOSITE=${GEO_URL_GEOSITE:-"$GEO_BASE_URL/geosite.dat"}
 readonly GEO_URL_MMDB=${GEO_URL_MMDB:-"$GEO_BASE_URL/geoip.metadb"}
 readonly GEO_URL_ASN=${GEO_URL_ASN:-"$GEO_BASE_URL/GeoLite2-ASN.mmdb"}
 
+# ip6
+USE_IP6=${USE_IP6:-true}
+
 # WARP wgcf
 WGCF_DATA="/app/wgcf"
 WGCF_BIN="/usr/local/bin/wgcf"
