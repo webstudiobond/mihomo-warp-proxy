@@ -16,9 +16,10 @@ RUN set -eux; \
 
 # mihomo (clash-meta)
 RUN set -eux; \
+    CPU_LEVEL=$(grep -q "avx2" /proc/cpuinfo && echo "v3" || (grep -q "sse4_2" /proc/cpuinfo && echo "v2" || echo "v1")); \
     MIHOMO_VER=$(wget -q -O - --timeout=30 https://api.github.com/repos/MetaCubeX/mihomo/releases/latest | jq -r .tag_name | sed 's/^v//'); \
     [ -n "$MIHOMO_VER" ]; \
-    wget -O mihomo.gz --timeout=60 "https://github.com/MetaCubeX/mihomo/releases/download/v${MIHOMO_VER}/mihomo-linux-amd64-v${MIHOMO_VER}.gz"; \
+    wget -O mihomo.gz --timeout=60 "https://github.com/MetaCubeX/mihomo/releases/download/v${MIHOMO_VER}/mihomo-linux-amd64-${CPU_LEVEL}-v${MIHOMO_VER}.gz"; \
     gunzip mihomo.gz; \
     chmod +x mihomo
 
