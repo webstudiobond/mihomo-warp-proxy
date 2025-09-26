@@ -106,10 +106,6 @@ EOF
       i3: $WARP_AMNEZIA_I3
       i4: $WARP_AMNEZIA_I4
       i5: $WARP_AMNEZIA_I5
-      j1: $WARP_AMNEZIA_J1
-      j2: $WARP_AMNEZIA_J2
-      j3: $WARP_AMNEZIA_J3
-      itime: $WARP_AMNEZIA_ITIME
 EOF
     fi
   
@@ -264,7 +260,6 @@ update_geo_config() {
   
   if is_true "$GEO"; then
     log "DEBUG" "Enabling GEO configuration"
-    # if ! yq -i ".geodata-mode = true |
     if ! (timeout 30 yq -i ".geodata-mode = true |
            .geodata-loader = \"memconservative\" |
            .geo-auto-update = false |
@@ -337,18 +332,14 @@ update_amnezia_config() {
     
     # Escape all Amnezia values
     local escaped_i1 escaped_i2 escaped_i3 escaped_i4 escaped_i5
-    local escaped_j1 escaped_j2 escaped_j3
     escaped_i1=$(escape_for_yq "$WARP_AMNEZIA_I1")
     escaped_i2=$(escape_for_yq "$WARP_AMNEZIA_I2")
     escaped_i3=$(escape_for_yq "$WARP_AMNEZIA_I3")
     escaped_i4=$(escape_for_yq "$WARP_AMNEZIA_I4")
     escaped_i5=$(escape_for_yq "$WARP_AMNEZIA_I5")
-    escaped_j1=$(escape_for_yq "$WARP_AMNEZIA_J1")
-    escaped_j2=$(escape_for_yq "$WARP_AMNEZIA_J2")
-    escaped_j3=$(escape_for_yq "$WARP_AMNEZIA_J3")
     
     # Validate numeric parameters
-    for param_name in WARP_AMNEZIA_JC WARP_AMNEZIA_JMIN WARP_AMNEZIA_JMAX WARP_AMNEZIA_ITIME; do
+    for param_name in WARP_AMNEZIA_JC WARP_AMNEZIA_JMIN WARP_AMNEZIA_JMAX; do
       param_value=$(get_amnezia_var "$param_name" || true)
       if [ -n "$param_value" ]; then
         case "$param_value" in
@@ -372,11 +363,7 @@ update_amnezia_config() {
             \"i2\": \"$escaped_i2\",
             \"i3\": \"$escaped_i3\",
             \"i4\": \"$escaped_i4\",
-            \"i5\": \"$escaped_i5\",
-            \"j1\": \"$escaped_j1\",
-            \"j2\": \"$escaped_j2\",
-            \"j3\": \"$escaped_j3\",
-            \"itime\": $WARP_AMNEZIA_ITIME
+            \"i5\": \"$escaped_i5\"
           }" "$config_file"); then
       err_exit "Failed to update Amnezia configuration"
     fi
@@ -530,7 +517,6 @@ update_mihomo_config_with_environment() {
 }
 
 update_mihomo_config_for_warp() {
-  # local PROFILE_FILE="$WGCF_DATA/wgcf-profile.conf"
   local PROFILE_FILE="$WGCF_PROFILE_FILE"
   
   if [ ! -f "$PROFILE_FILE" ]; then

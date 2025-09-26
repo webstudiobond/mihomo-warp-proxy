@@ -69,7 +69,7 @@ services:
       WARP_AMNEZIA_JMIN: ${WARP_AMNEZIA_JMIN:-}
       # Junk packet maximum size <= 1280
       WARP_AMNEZIA_JMAX: ${WARP_AMNEZIA_JMAX:-}
-      # AmneziaWG v1.5 variables
+      # AmneziaWG v2 variables
       # <b hex_data> Static bytes to emulate protocols. Arbitrary length
       # <c> Packet counter (32-bit, network byte order) Unique within the sequence
       # <t> Unix timestamp (32-bit, network byte order) Unique within the sequence
@@ -80,10 +80,6 @@ services:
       WARP_AMNEZIA_I3: ${WARP_AMNEZIA_I3:-}
       WARP_AMNEZIA_I4: ${WARP_AMNEZIA_I4:-}
       WARP_AMNEZIA_I5: ${WARP_AMNEZIA_I5:-}
-      WARP_AMNEZIA_J1: ${WARP_AMNEZIA_J1:-}
-      WARP_AMNEZIA_J2: ${WARP_AMNEZIA_J2:-}
-      WARP_AMNEZIA_J3: ${WARP_AMNEZIA_J3:-}
-      WARP_AMNEZIA_ITIME: ${WARP_AMNEZIA_ITIME:-}
     volumes:
       - ./mihomo-data:/app/mihomo:rw
       - ./wgcf-data:/app/wgcf:rw
