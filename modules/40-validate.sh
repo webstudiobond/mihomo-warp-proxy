@@ -415,7 +415,8 @@ parse_toml_value() {
     local key="$2"
     
     if [ ! -f "$file" ]; then
-        err_exit  "ERROR" "TOML file not found: $file"
+        log "WARN" "TOML file not found: $file"
+        return 1
     fi
     
     # Extract value, removing quotes and whitespace
@@ -428,7 +429,8 @@ validate_account_param() {
   local value="$2"
    
   if [ -z "$value" ]; then
-    err_exit "ERROR" "$param_name is empty"
+    log "WARN" "$param_name is empty"
+    return 1
   fi
   
   case "$param_name" in
@@ -650,7 +652,7 @@ validate_environment() {
     err_exit "PROXY_USER must be set when PROXY_PASS is provided"
   fi
 
-  # Validate bollean environment variables
+  # Validate boolean environment variables
   log "DEBUG" "Validate MULTI_USER_MODE"
   validate_bool_env "MULTI_USER_MODE" "$MULTI_USER_MODE"
   log "DEBUG" "Validate USE_IP6"
