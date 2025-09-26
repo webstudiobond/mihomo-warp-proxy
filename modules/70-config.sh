@@ -133,6 +133,7 @@ escape_for_yq() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
+
 parse_warp_profile() {
     PROFILE_FILE="$WGCF_PROFILE_FILE"
 
@@ -494,6 +495,15 @@ update_config_with_yq() {
     
     update_warp_config "$file" || return 1
     update_amnezia_config "$file" || return 1
+
+    log "DEBUG" "Integrate WARP reserved"
+
+    . /usr/local/bin/modules/95-warp-reserved.sh
+  
+    # Try to integrate reserved values
+    if [ -n "${MWP_WARP_RESERVED_SH_LOADED:-}" ]; then
+      integrate_warp_reserved_values
+    fi
   fi
 
   # Handle any remaining template placeholders

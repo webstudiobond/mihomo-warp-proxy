@@ -34,6 +34,7 @@ RUN apk add --no-cache \
             su-exec \
             curl \
             yq \
+            jq \
             tini \
             tzdata \
             && rm -rf /var/cache/apk/*
