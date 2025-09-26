@@ -101,7 +101,7 @@ validate_numeric_env() {
   fi
 }
 
-# Helper function to validate boolian environment variables
+# Helper function to validate boolean environment variables
 validate_bool_env() {
   local var_name="$1"
   local value="$2"
@@ -409,6 +409,82 @@ validate_amnezia_params() {
   validate_amnezia_string_params
 }
 
+# Helper function to parse TOML values
+parse_toml_value() {
+    local file="$1"
+    local key="$2"
+    
+    if [ ! -f "$file" ]; then
+        err_exit  "ERROR" "TOML file not found: $file"
+    fi
+    
+    # Extract value, removing quotes and whitespace
+    grep "^${key}" "$file" | head -n1 | cut -d'=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'"'"']//' -e 's/["'"'"']$//'
+}
+
+# Helper function to validate account params
+validate_account_param() {
+  local param_name="$1"
+  local value="$2"
+   
+  if [ -z "$value" ]; then
+    err_exit "ERROR" "$param_name is empty"
+  fi
+  
+  case "$param_name" in
+    "device_id")
+      case "$value" in
+        *[^a-fA-F0-9-]*) log "WARN" "Invalid device_id format"; return 1 ;;
+      esac
+      ;;
+    "access_token"|"client_id")
+      # Base64 can contain A-Z, a-z, 0-9, +, /, = - less restrictive validation
+      case "$value" in
+        *[^A-Za-z0-9+/=_-]*) log "WARN" "Invalid $param_name format"; return 1 ;;
+      esac
+      ;;
+  esac
+}
+
+# Helper function to validate WARP account file
+validate_warp_account_file() {
+    local account_file="$1"
+    
+    if [ ! -f "$account_file" ]; then
+        log "WARN" "WARP account file not found: $account_file"
+        return 1
+    fi
+    
+    # Check file permissions for security
+    local file_perms
+    file_perms=$(stat -c '%a' "$account_file" 2>/dev/null || stat -f '%Lp' "$account_file" 2>/dev/null || echo "000")
+    case "$file_perms" in
+        600|400) ;;  # Acceptable permissions
+        *) log "WARN" "WARP account file has potentially unsafe permissions: $file_perms" ;;
+    esac
+    
+    # Validate required fields exist
+    local access_token device_id
+    access_token=$(parse_toml_value "$account_file" "access_token")
+    device_id=$(parse_toml_value "$account_file" "device_id")
+    
+    if [ -z "$access_token" ]; then
+        log "WARN" "access_token not found in WARP account file"
+        return 1
+    fi
+    
+    if [ -z "$device_id" ]; then
+        log "WARN" "device_id not found in WARP account file"
+        return 1
+    fi
+    
+    # Basic format validation
+    validate_account_param "access_token" "$access_token"
+    validate_account_param "device_id" "$device_id"
+    
+    return 0
+}
+
 # Helper function to resolve hostname to IP addresses
 resolve_hostname() {
   local hostname="$1"
@@ -528,7 +604,7 @@ validate_ipv6() {
 # Helper function to validate warp profile KEYs & IPs
 validate_warp_profile_params() {
     log "DEBUG" "Validate WARP Private KEY"
-    # Проверка ключей
+    # Checking keys
     case "$WARP_PRIVATE_KEY" in
         [A-Za-z0-9+/=]*) [ "${#WARP_PRIVATE_KEY}" -eq 44 ] || err_exit "Invalid WARP_PRIVATE_KEY length" ;;
         *) err_exit "Invalid WARP_PRIVATE_KEY format" ;;
@@ -574,7 +650,7 @@ validate_environment() {
     err_exit "PROXY_USER must be set when PROXY_PASS is provided"
   fi
 
-  # Validate boll environment variables
+  # Validate bollean environment variables
   log "DEBUG" "Validate MULTI_USER_MODE"
   validate_bool_env "MULTI_USER_MODE" "$MULTI_USER_MODE"
   log "DEBUG" "Validate USE_IP6"
