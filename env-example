@@ -62,7 +62,7 @@ WARP_AMNEZIA_JC=5
 WARP_AMNEZIA_JMIN=7
 ## Junk packet maximum size <= 1280
 WARP_AMNEZIA_JMAX=15
-## AmneziaWG v1.5 variables
+## AmneziaWG v2 variables
 # <b hex_data> Static bytes to emulate protocols. Arbitrary length
 # <c> Packet counter (32-bit, network byte order) Unique within the sequence
 # <t> Unix timestamp (32-bit, network byte order) Unique within the sequence
@@ -73,7 +73,3 @@ WARP_AMNEZIA_I2="<b 0xf6ab3267fa><r 100>"
 WARP_AMNEZIA_I3=""
 WARP_AMNEZIA_I4=""
 WARP_AMNEZIA_I5=""
-WARP_AMNEZIA_J1="<b 0xffffffff><c><b 0xf6ab><t><r 10>"
-WARP_AMNEZIA_J2="<c><b 0xf6ab><t><wt 1000>"
-WARP_AMNEZIA_J3="<t><b 0xf6ab><c><r 10>"
-WARP_AMNEZIA_ITIME=60

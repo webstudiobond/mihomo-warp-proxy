@@ -256,17 +256,13 @@ get_amnezia_var() {
     WARP_AMNEZIA_I3) printf '%s' "$WARP_AMNEZIA_I3"; return 0 ;;
     WARP_AMNEZIA_I4) printf '%s' "$WARP_AMNEZIA_I4"; return 0 ;;
     WARP_AMNEZIA_I5) printf '%s' "$WARP_AMNEZIA_I5"; return 0 ;;
-    WARP_AMNEZIA_J1) printf '%s' "$WARP_AMNEZIA_J1"; return 0 ;;
-    WARP_AMNEZIA_J2) printf '%s' "$WARP_AMNEZIA_J2"; return 0 ;;
-    WARP_AMNEZIA_J3) printf '%s' "$WARP_AMNEZIA_J3"; return 0 ;;
-    WARP_AMNEZIA_ITIME) printf '%s' "$WARP_AMNEZIA_ITIME"; return 0 ;;
     *) return 1 ;;
   esac
 }
 
 # Helper function to validate Amnezia numeric parameters 
 validate_amnezia_num_params() {
-  for param_name in WARP_AMNEZIA_JC WARP_AMNEZIA_JMIN WARP_AMNEZIA_JMAX WARP_AMNEZIA_ITIME; do
+  for param_name in WARP_AMNEZIA_JC WARP_AMNEZIA_JMIN WARP_AMNEZIA_JMAX; do
     param_value=$(get_amnezia_var "$param_name" || true)
 
     # Log input for debugging
@@ -291,11 +287,6 @@ validate_amnezia_num_params() {
               err_exit "Out of valid range (0 <= jmin < jmax <= 1280), WARP_AMNEZIA_JMIN: $WARP_AMNEZIA_JMIN, $param_name: $param_value"
             fi
             ;;
-          WARP_AMNEZIA_ITIME)
-            if [ "$param_value" -lt 0 ] || [ "$param_value" -gt 120 ]; then
-              err_exit "Out of valid range (0 <= itime <= 120), $param_name: $param_value"
-            fi
-            ;;
         esac
         ;;
     esac
@@ -304,8 +295,7 @@ validate_amnezia_num_params() {
 
 # Helper function to validate Amnezia string parameters 
 validate_amnezia_string_params() {
-  for param_name in WARP_AMNEZIA_I1 WARP_AMNEZIA_I2 WARP_AMNEZIA_I3 WARP_AMNEZIA_I4 WARP_AMNEZIA_I5 \
-                   WARP_AMNEZIA_J1 WARP_AMNEZIA_J2 WARP_AMNEZIA_J3; do
+  for param_name in WARP_AMNEZIA_I1 WARP_AMNEZIA_I2 WARP_AMNEZIA_I3 WARP_AMNEZIA_I4 WARP_AMNEZIA_I5; do
     param_value=$(get_amnezia_var "$param_name" || true)
     if [ -n "$param_value" ]; then
       # Check total length
@@ -696,7 +686,7 @@ validate_environment() {
   
   # Validate Amnezia parameters if enabled
   if [ -n "$WARP_AMNEZIA" ]; then
-    log "DEBUG" "Validate WARP_AMNEZIA"
+    log "DEBUG" "Validate WARP_AMNEZIA_* params"
     if is_true "$WARP_AMNEZIA"; then
       validate_amnezia_params
     fi
