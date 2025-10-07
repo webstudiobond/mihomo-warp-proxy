@@ -31,7 +31,7 @@ dns_to_yaml_array() {
 create_mihomo_template_config() {
 
   mkdir -p "$(dirname "$MIHOMO_CONFIG_FILE")" || err_exit "Failed to create config directory"
-  
+
   cat > "$MIHOMO_CONFIG_FILE" << EOF
 mode: rule
 ipv6: $USE_IP6
@@ -53,7 +53,7 @@ EOF
     cat >> "$MIHOMO_CONFIG_FILE" <<EOF
 geodata-mode: true
 geodata-loader: memconservative
-geo-auto-update: false
+geo-auto-update: "$GEO_AUTO_UPDATE"
 geo-update-interval: 24
 geox-url:
   geoip: "${GEO_URL_GEOIP:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat}"
@@ -69,7 +69,7 @@ EOF
     DNS_YAML="$(dns_to_yaml_array "$WARP_DNS")"
     [ -n "$DNS_YAML" ] || err_exit "Invalid DNS configuration: $WARP_DNS"
     DNS_YAML="[$DNS_YAML]"
-  
+
     cat >> "$MIHOMO_CONFIG_FILE" <<EOF
 proxies:
   - name: "warp"
@@ -108,7 +108,7 @@ EOF
       i5: $WARP_AMNEZIA_I5
 EOF
     fi
-  
+
   cat >> "$MIHOMO_CONFIG_FILE" <<EOF
 rules:
   - MATCH,warp
@@ -139,7 +139,7 @@ parse_warp_profile() {
 
     perms=$(stat_safe '%a' "$PROFILE_FILE" 2>/dev/null || echo "")
     case "$perms" in
-        600|400) ;; 
+        600|400) ;;
         *) err_exit "Unsafe permissions on WARP profile: $perms (expected 600 or 400)" ;;
     esac
 
@@ -147,7 +147,7 @@ parse_warp_profile() {
     extract_ini_value() {
         section="$1"
         key="$2"
-        
+
         # Input parameter validation - only safe characters
         case "$section" in
             *[^a-zA-Z0-9_-]*) err_exit "Invalid section name: $section" ;;
@@ -155,11 +155,11 @@ parse_warp_profile() {
         case "$key" in
             *[^a-zA-Z0-9_-]*) err_exit "Invalid key name: $key" ;;
         esac
-        
+
         # Escaping special characters for sed
         escaped_section=$(printf '%s' "$section" | sed 's/[[\.*^$()+?{|]/\\&/g')
         escaped_key=$(printf '%s' "$key" | sed 's/[[\.*^$()+?{|]/\\&/g')
-        
+
         # Extracting value only from the required section
         sed -n "
             /^\[$escaped_section\]/,/^\[.*\]/{
@@ -172,7 +172,7 @@ parse_warp_profile() {
 
     # One-time reading and parsing of all required values
     WARP_PRIVATE_KEY=$(extract_ini_value "Interface" "PrivateKey")
-    WARP_PUBLIC_KEY=$(extract_ini_value "Peer" "PublicKey") 
+    WARP_PUBLIC_KEY=$(extract_ini_value "Peer" "PublicKey")
     WARP_ADDRESS=$(extract_ini_value "Interface" "Address")
 
     # Safe cleanup of control characters only (keep base64 padding)
@@ -183,11 +183,11 @@ parse_warp_profile() {
     # Extract IPv4 and IPv6 from Address using parameter expansion where possible
     # Remove spaces and separate by comma
     addr_clean="$WARP_ADDRESS"
-    
+
     # Extract IPv4 (up to the first comma)
     WARP_IPV4="${addr_clean%%,*}"
     WARP_IPV4="${WARP_IPV4%%/*}"  # Remove the CIDR mask
-    
+
     # Extract IPv6 (after the first comma)
     addr_remaining="${addr_clean#*,}"
     WARP_IPV6="${addr_remaining%%/*}"  # Remove the CIDR mask
@@ -211,19 +211,19 @@ parse_warp_profile() {
 update_basic_config_fields() {
   local config_file="$1"
   local temp_dir temp_auth_file_secure
-  
+
   temp_dir=$(dirname "$config_file")
-  
+
   # Validate and escape input values
   local escaped_log_level escaped_user escaped_pass escaped_use_ip6
   escaped_log_level=$(escape_for_yq "$PROXY_LOG_LEVEL")
   escaped_user=$(escape_for_yq "$PROXY_USER")
   escaped_pass=$(escape_for_yq "$PROXY_PASS")
   escaped_use_ip6=$(escape_for_yq "$USE_IP6")
-  
+
   # Create secure temp file for authentication
   temp_auth_file_secure=$(create_secure_temp_file "$temp_dir" "auth") || return 1
-  
+
   # Additional security check
   if [ -L "$temp_auth_file_secure" ]; then
     log "ERROR" "Auth temp file is a symlink: $temp_auth_file_secure"
@@ -231,25 +231,25 @@ update_basic_config_fields() {
     return 1
   fi
   temp_auth_file="$temp_auth_file_secure"
-  
+
   # Create authentication data safely
   printf 'auth_user: "%s"\nauth_pass: "%s"\n' "$escaped_user" "$escaped_pass" > "$temp_auth_file" || {
     remove_temp_file "$temp_auth_file"
     err_exit "Failed to create auth temp file"
   }
-  
+
   # Update basic fields atomically
   if ! (timeout 30 yq -i ".ipv6 = $escaped_use_ip6 | .log-level = \"$escaped_log_level\" | .mixed-port = $PROXY_PORT" "$config_file"); then
     remove_temp_file "$temp_auth_file"
     err_exit "Failed to update basic config fields"
   fi
-  
+
   # Update authentication atomically
   if ! (timeout 30 yq -i ".authentication = [(load(\"$temp_auth_file\") | .auth_user + \":\" + .auth_pass)]" "$config_file"); then
     rm -f "$temp_auth_file"
     err_exit "Failed to update authentication"
   fi
-  
+
   rm -f "$temp_auth_file"
   return 0
 }
@@ -257,12 +257,12 @@ update_basic_config_fields() {
 # Update GEO configuration settings
 update_geo_config() {
   local config_file="$1"
-  
+
   if is_true "$GEO"; then
     log "DEBUG" "Enabling GEO configuration"
     if ! (timeout 30 yq -i ".geodata-mode = true |
            .geodata-loader = \"memconservative\" |
-           .geo-auto-update = false |
+           .geo-auto-update = "$GEO_AUTO_UPDATE" |
            .geo-update-interval = 24 |
            .geox-url.geoip = \"$GEO_URL_GEOIP\" |
            .geox-url.geosite = \"$GEO_URL_GEOSITE\" |
@@ -277,7 +277,7 @@ update_geo_config() {
       err_exit "Failed to remove GEO configuration"
     fi
   fi
-  
+
   return 0
 }
 
@@ -285,20 +285,20 @@ update_geo_config() {
 update_warp_config() {
   local config_file="$1"
   local dns_array
-  
+
   # Validate WARP parameters first
   validate_warp_profile_params || return 1
-  
+
   # Prepare DNS array safely
   dns_array=$(dns_to_yaml_array "$WARP_DNS") || {
     err_exit "Failed to parse WARP DNS configuration"
   }
-  
+
   # Check if warp proxy exists
   if ! yq '.proxies[]? | select(.name == "warp") | .name' "$config_file" >/dev/null 2>&1; then
     err_exit "WARP proxy configuration not found in config file"
   fi
-  
+
   # Escape all WARP values for safe YAML insertion
   local escaped_server escaped_ipv4 escaped_ipv6 escaped_pub_key escaped_priv_key
   escaped_server=$(escape_for_yq "$WARP_SERVER")
@@ -306,7 +306,7 @@ update_warp_config() {
   escaped_ipv6=$(escape_for_yq "$WARP_IPV6")
   escaped_pub_key=$(escape_for_yq "$WARP_PUBLIC_KEY")
   escaped_priv_key=$(escape_for_yq "$WARP_PRIVATE_KEY")
-  
+
   # Update WARP proxy settings atomically
   if ! (timeout 30 yq -i "(.proxies[]? | select(.name == \"warp\")) |= (
           .server = \"$escaped_server\" |
@@ -319,17 +319,17 @@ update_warp_config() {
         )" "$config_file"); then
     err_exit "Failed to update WARP proxy configuration"
   fi
-  
+
   return 0
 }
 
 # Update Amnezia WireGuard options
 update_amnezia_config() {
   local config_file="$1"
-  
+
   if is_true "$WARP_AMNEZIA"; then
     log "DEBUG" "Enabling Amnezia WireGuard options"
-    
+
     # Escape all Amnezia values
     local escaped_i1 escaped_i2 escaped_i3 escaped_i4 escaped_i5
     escaped_i1=$(escape_for_yq "$WARP_AMNEZIA_I1")
@@ -337,7 +337,7 @@ update_amnezia_config() {
     escaped_i3=$(escape_for_yq "$WARP_AMNEZIA_I3")
     escaped_i4=$(escape_for_yq "$WARP_AMNEZIA_I4")
     escaped_i5=$(escape_for_yq "$WARP_AMNEZIA_I5")
-    
+
     # Validate numeric parameters
     for param_name in WARP_AMNEZIA_JC WARP_AMNEZIA_JMIN WARP_AMNEZIA_JMAX; do
       param_value=$(get_amnezia_var "$param_name" || true)
@@ -347,7 +347,7 @@ update_amnezia_config() {
         esac
       fi
     done
-    
+
     # Update Amnezia configuration atomically
     if ! (timeout 30 yq -i "(.proxies[]? | select(.name == \"warp\")).\"amnezia-wg-option\" = {
             \"jc\": $WARP_AMNEZIA_JC,
@@ -373,7 +373,7 @@ update_amnezia_config() {
       err_exit "Failed to remove Amnezia configuration"
     fi
   fi
-  
+
   return 0
 }
 
@@ -381,22 +381,22 @@ update_amnezia_config() {
 handle_placeholders() {
   local config_file="$1"
   local temp_dir temp_sed_script temp_config_secure
-  
+
   # Check if placeholders exist
   if ! grep -q "PLACEHOLDER_" "$config_file"; then
     return 0
   fi
-  
+
   log "DEBUG" "Processing template placeholders"
-  
+
   # Validate required WARP variables for placeholder replacement
   validate_warp_profile_params || {
     err_exit "Cannot replace placeholders without valid WARP configuration"
   }
-  
+
   temp_dir=$(dirname "$config_file")
   temp_sed_script=$(create_secure_temp_file "$temp_dir" "sed_script") || return 1
-  
+
   # Additional security check for sed script
   if [ -L "$temp_sed_script" ]; then
     log "ERROR" "Sed script temp file is a symlink: $temp_sed_script"
@@ -416,7 +416,7 @@ handle_placeholders() {
     rm -f "$temp_sed_script"
     err_exit "Failed to create sed script"
   }
-  
+
   # Create temporary file for sed output
   local temp_config
   temp_config_secure=$(create_secure_temp_file "$temp_dir" "config_sed") || {
@@ -432,7 +432,7 @@ handle_placeholders() {
     return 1
   fi
   temp_config="$temp_config_secure"
-  
+
   # Apply replacements safely
   if [ -f "$config_file" ] && [ ! -L "$config_file" ] && sed -f "$temp_sed_script" "$config_file" > "$temp_config"; then
     if mv "$temp_config" "$config_file"; then
@@ -450,22 +450,22 @@ handle_placeholders() {
       remove_temp_file "$temp_config"
     return 1
   fi
-  
+
   # Verify all placeholders were replaced
   if grep -q "PLACEHOLDER_" "$config_file"; then
     err_exit "Some placeholders remain unreplaced in config"
   fi
-  
+
   return 0
 }
 
 update_config_with_yq() {
   log "DEBUG" "Updating mihomo config using yq"
   local file="$MIHOMO_CONFIG_FILE"
-  
+
   # Update configuration components in sequence
   update_basic_config_fields "$file" || return 1
-  
+
   update_geo_config "$file" || return 1
 
   if is_true "$USE_WARP_CONFIG"; then
@@ -477,16 +477,16 @@ update_config_with_yq() {
       rm -f "$file" || { log "WARN" "Failed to remove config file: $temp_file"; }
       run_common_tasks
       export CONFIG_RECREATED=true
-      return 0 
+      return 0
     fi
-    
+
     update_warp_config "$file" || return 1
     update_amnezia_config "$file" || return 1
 
     log "DEBUG" "Integrate WARP reserved"
 
     . /usr/local/bin/modules/95-warp-reserved.sh
-  
+
     # Try to integrate reserved values
     if [ -n "${MWP_WARP_RESERVED_SH_LOADED:-}" ]; then
       integrate_warp_reserved_values
@@ -495,7 +495,7 @@ update_config_with_yq() {
 
   # Handle any remaining template placeholders
   handle_placeholders "$file" || return 1
- 
+
   # Set secure permissions
   chmod 0600 "$file" || log "WARN" "Failed to set permissions on $file"
   log "DEBUG" "Configuration updated successfully"
@@ -511,24 +511,24 @@ update_mihomo_config_with_environment() {
   if [ "${CONFIG_RECREATED:-false}" = "true" ]; then
      return
   fi
-  
+
   # Use yq for robust YAML manipulation
   update_config_with_yq
 }
 
 update_mihomo_config_for_warp() {
   local PROFILE_FILE="$WGCF_PROFILE_FILE"
-  
+
   if [ ! -f "$PROFILE_FILE" ]; then
     log "WARN" "WARP profile not found, skipping config update"
     return
   fi
-  
+
   if [ ! -f "$MIHOMO_CONFIG_FILE" ]; then
     log "DEBUG" "Creating mihomo config template for WARP"
     create_mihomo_template_config
   fi
-  
+
   log "DEBUG" "Updating mihomo config with WARP parameters"
   parse_warp_profile
   update_mihomo_config_with_environment

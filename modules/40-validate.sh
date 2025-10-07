@@ -8,25 +8,25 @@ validate_path() {
   local path="$1"
   local var_name="$2"
   local clean_path parent_path
-  
+
   # Basic validation: must be non-empty and absolute path
   [ -n "$path" ] || err_exit "$var_name cannot be empty"
   case "$path" in
     /*) ;;
     *) err_exit "$var_name must be an absolute path: $path" ;;
   esac
-  
+
   # Check for null bytes and control characters (most critical security check)
   if printf '%s' "$path" | od -An -tx1 | grep -qE '(^| )(00|0[1-9a-f]|1[0-9a-f]|7f)( |$)'; then
     err_exit "$var_name contains null bytes or control characters"
   fi
-  
+
   # Comprehensive directory traversal protection
   case "$path" in
     # Standard traversal patterns
-    */../*|*/..*|../*|*/..) 
+    */../*|*/..*|../*|*/..)
       err_exit "$var_name contains directory traversal: $path" ;;
-    # Hidden traversal and malformed paths  
+    # Hidden traversal and malformed paths
     */./*|*/.|.*/*|*//*)
       err_exit "$var_name contains malformed path components: $path" ;;
     # Whitespace and dangerous characters
@@ -34,7 +34,7 @@ validate_path() {
 '*|*' '*)
       err_exit "$var_name contains whitespace or newlines: $path" ;;
   esac
-  
+
   # Block access to sensitive system directories
   case "$path" in
     /dev/*|/proc/*|/sys/*|/run/*|/tmp/..*)
@@ -43,12 +43,12 @@ validate_path() {
     /var/run/docker.sock|/var/run/containerd/*|/.dockerenv)
       err_exit "$var_name points to container runtime files: $path" ;;
   esac
-  
+
   # Path length validation (prevent buffer overflows)
   if [ ${#path} -gt 4096 ]; then
     err_exit "$var_name exceeds maximum path length (4096): ${#path}"
   fi
-  
+
   # Validate individual path components
   clean_path="$path"
   while [ "$clean_path" != "/" ]; do
@@ -59,12 +59,12 @@ validate_path() {
     fi
     # Check for dangerous component patterns
     case "$component" in
-      .*..* | *..* | *..*) 
+      .*..* | *..* | *..*)
         err_exit "$var_name contains dangerous component: $component" ;;
     esac
     clean_path=$(dirname "$clean_path")
   done
-  
+
   # Optional additional validation with realpath (non-critical)
   # Only attempt if we have permission to read parent directories
   if command -v realpath >/dev/null 2>&1; then
@@ -81,7 +81,7 @@ validate_path() {
       fi
     fi
   fi
-  
+
   return 0
 }
 
@@ -91,11 +91,11 @@ validate_numeric_env() {
   local value="$2"
   local min="$3"
   local max="$4"
-  
+
   case "$value" in
     ''|*[!0-9]*) err_exit "$var_name must be a valid number: $value" ;;
   esac
-  
+
   if [ "$value" -lt "$min" ] || [ "$value" -gt "$max" ]; then
     err_exit "$var_name must be between $min-$max: $value"
   fi
@@ -105,11 +105,11 @@ validate_numeric_env() {
 validate_bool_env() {
   local var_name="$1"
   local value="$2"
-  
+
   case "$value" in
     true|false|1|0)
       ;;
-    *) 
+    *)
       err_exit "Invalid $var_name value: '$value' (allowed: true, false, 1, 0)"
       ;;
   esac
@@ -119,11 +119,11 @@ validate_bool_env() {
 validate_proxy_log_level_env() {
   local var_name="$1"
   local value="$2"
-  
+
   case "$value" in
     silent|error|warning|info|debug)
       ;;
-    *) 
+    *)
       err_exit "Invalid $var_name value: '$value' (allowed: silent, error, warning, info, debug)"
       ;;
   esac
@@ -139,7 +139,7 @@ is_valid_dns() {
     *:*) return 0 ;;
     # DoT (DNS over TLS)
     tls://*) return 0 ;;
-    # DoH (DNS over HTTPS)  
+    # DoH (DNS over HTTPS)
     https://*) return 0 ;;
     # DoQ (DNS over QUIC)
     quic://*) return 0 ;;
@@ -152,11 +152,11 @@ is_valid_dns() {
 validate_proxy_credentials() {
   local user="$1"
   local pass="$2"
-  
+
   # Check for empty credentials
   [ -n "$user" ] || err_exit "PROXY_USER cannot be empty"
   [ -n "$pass" ] || err_exit "PROXY_PASS cannot be empty"
-  
+
   # Length validation (reasonable limits)
   if [ ${#user} -gt 64 ]; then
     err_exit "PROXY_USER too long (max 64 characters): ${#user}"
@@ -164,7 +164,7 @@ validate_proxy_credentials() {
   if [ ${#pass} -gt 128 ]; then
     err_exit "PROXY_PASS too long (max 128 characters): ${#pass}"
   fi
-  
+
   # Character validation for username
   case "$PROXY_USER" in
     *:*) err_exit "PROXY_USER cannot contain colon characters" ;;
@@ -172,14 +172,14 @@ validate_proxy_credentials() {
     *[[:space:]]*) err_exit "PROXY_USER cannot contain whitespace characters" ;;
     *[[:cntrl:]]*) err_exit "PROXY_USER cannot contain control characters" ;;
   esac
-  
+
   # Character validation for password
   case "$PROXY_PASS" in
     *:*) err_exit "PROXY_PASS cannot contain colon characters" ;;
     *[\"\'\\$\`]*) err_exit "PROXY_PASS cannot contain quotes, backslashes, dollar signs, or backticks" ;;
     *[[:cntrl:]]*) err_exit "PROXY_PASS cannot contain control characters" ;;
   esac
-  
+
   # Additional security: check for null bytes using od
   if printf '%s' "$user" | od -An -tx1 | grep -qE '(^| )00( |$)'; then
     err_exit "PROXY_USER contains null bytes"
@@ -216,9 +216,9 @@ validate_warp_endpoint() {
 validate_dns_string() {
   local dns_string="$1"
   local dns_entry dns_count
-  
+
   [ -n "$dns_string" ] || err_exit "WARP_DNS cannot be empty"
-  
+
   # Count DNS entries and validate each
   dns_count=0
   oldIFS=$IFS
@@ -226,24 +226,24 @@ validate_dns_string() {
   for dns_entry in $dns_string; do
     dns_entry=$(printf '%s' "$dns_entry" | tr -d ' \t\r\n')
     [ -n "$dns_entry" ] || continue
-    
+
     dns_count=$((dns_count + 1))
     if [ "$dns_count" -gt 8 ]; then
       err_exit "Too many DNS entries (max 8): $dns_count"
     fi
-    
+
     if ! is_valid_dns "$dns_entry"; then
       err_exit "Invalid DNS entry: $dns_entry"
     fi
   done
   IFS=$oldIFS
-  
+
   if [ "$dns_count" -eq 0 ]; then
     err_exit "No valid DNS entries found in WARP_DNS"
   fi
 }
 
-# Helper function to get Amnezia parameters 
+# Helper function to get Amnezia parameters
 get_amnezia_var() {
   name=$1
   case "$name" in
@@ -260,7 +260,7 @@ get_amnezia_var() {
   esac
 }
 
-# Helper function to validate Amnezia numeric parameters 
+# Helper function to validate Amnezia numeric parameters
 validate_amnezia_num_params() {
   for param_name in WARP_AMNEZIA_JC WARP_AMNEZIA_JMIN WARP_AMNEZIA_JMAX; do
     param_value=$(get_amnezia_var "$param_name" || true)
@@ -293,7 +293,7 @@ validate_amnezia_num_params() {
   done
 }
 
-# Helper function to validate Amnezia string parameters 
+# Helper function to validate Amnezia string parameters
 validate_amnezia_string_params() {
   for param_name in WARP_AMNEZIA_I1 WARP_AMNEZIA_I2 WARP_AMNEZIA_I3 WARP_AMNEZIA_I4 WARP_AMNEZIA_I5; do
     param_value=$(get_amnezia_var "$param_name" || true)
@@ -390,12 +390,12 @@ validate_amnezia_string_params() {
   done
 }
 
-# Helper function to validate Amnezia parameters 
+# Helper function to validate Amnezia parameters
 validate_amnezia_params() {
   local param_name param_value
 
   validate_amnezia_num_params
-  
+
   validate_amnezia_string_params
 }
 
@@ -403,12 +403,12 @@ validate_amnezia_params() {
 parse_toml_value() {
     local file="$1"
     local key="$2"
-    
+
     if [ ! -f "$file" ]; then
         log "WARN" "TOML file not found: $file"
         return 1
     fi
-    
+
     # Extract value, removing quotes and whitespace
     grep "^${key}" "$file" | head -n1 | cut -d'=' -f2- | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'"'"']//' -e 's/["'"'"']$//'
 }
@@ -417,12 +417,12 @@ parse_toml_value() {
 validate_account_param() {
   local param_name="$1"
   local value="$2"
-   
+
   if [ -z "$value" ]; then
     log "WARN" "$param_name is empty"
     return 1
   fi
-  
+
   case "$param_name" in
     "device_id")
       case "$value" in
@@ -441,12 +441,12 @@ validate_account_param() {
 # Helper function to validate WARP account file
 validate_warp_account_file() {
     local account_file="$1"
-    
+
     if [ ! -f "$account_file" ]; then
         log "WARN" "WARP account file not found: $account_file"
         return 1
     fi
-    
+
     # Check file permissions for security
     local file_perms
     file_perms=$(stat -c '%a' "$account_file" 2>/dev/null || stat -f '%Lp' "$account_file" 2>/dev/null || echo "000")
@@ -454,26 +454,26 @@ validate_warp_account_file() {
         600|400) ;;  # Acceptable permissions
         *) log "WARN" "WARP account file has potentially unsafe permissions: $file_perms" ;;
     esac
-    
+
     # Validate required fields exist
     local access_token device_id
     access_token=$(parse_toml_value "$account_file" "access_token")
     device_id=$(parse_toml_value "$account_file" "device_id")
-    
+
     if [ -z "$access_token" ]; then
         log "WARN" "access_token not found in WARP account file"
         return 1
     fi
-    
+
     if [ -z "$device_id" ]; then
         log "WARN" "device_id not found in WARP account file"
         return 1
     fi
-    
+
     # Basic format validation
     validate_account_param "access_token" "$access_token"
     validate_account_param "device_id" "$device_id"
-    
+
     return 0
 }
 
@@ -515,7 +515,7 @@ is_restricted_ip() {
     # IPv6 unique local and deprecated site-local
     fc00:*|fd00:*|fec0:* ) return 0 ;;
     # IPv4-mapped IPv6 addresses: ::ffff:a.b.c.d
-    ::ffff:* ) 
+    ::ffff:* )
       # extract trailing IPv4 and re-check
       tail=$(printf '%s' "$ip" | sed -n 's/^::ffff:\(.*\)$/\1/p')
       case "$tail" in
@@ -561,7 +561,7 @@ validate_ipv4() {
   local ip="$1"
   case "$ip" in
     '') err_exit "IPv4 address is empty" ;;
-    *.*.*.*) 
+    *.*.*.*)
       local IFS='.'
       set -- $ip
       [ $# -eq 4 ] || err_exit "Invalid IPv4 format: $ip"
@@ -581,7 +581,7 @@ validate_ipv6() {
   local ip="$1"
   case "$ip" in
     '') err_exit "IPv6 address is empty" ;;
-    *:*) 
+    *:*)
       # Basic IPv6 format check - contains colons and valid hex characters
       case "$ip" in
         *[^0-9a-fA-F:]*) err_exit "Invalid IPv6 characters: $ip" ;;
@@ -649,6 +649,8 @@ validate_environment() {
   validate_bool_env "USE_IP6" "$USE_IP6"
   log "DEBUG" "Validate GEO"
   validate_bool_env "GEO" "$GEO"
+  log "DEBUG" "Validate GEO_AUTO_UPDATE"
+  validate_bool_env "GEO_AUTO_UPDATE" "$GEO_AUTO_UPDATE"
   log "DEBUG" "Validate GEO_REDOWNLOAD"
   validate_bool_env "GEO_REDOWNLOAD" "$GEO_REDOWNLOAD"
   log "DEBUG" "Validate USE_WARP_CONFIG"
@@ -657,13 +659,13 @@ validate_environment() {
   validate_bool_env "WARP_REGENERATE" "$WARP_REGENERATE"
   log "DEBUG" "Validate WARP_AMNEZIA"
   validate_bool_env "WARP_AMNEZIA" "$WARP_AMNEZIA"
-  
+
   # Validate DNS configuration
   log "DEBUG" "Validate WARP_DNS"
   if [ -n "$WARP_DNS" ]; then
     validate_dns_string "$WARP_DNS"
   fi
-  
+
   # Validate numeric environment variables: port, uid, gid
   log "DEBUG" "Validate PROXY_PORT"
   validate_numeric_env "PROXY_PORT" "$PROXY_PORT" 1 65535
@@ -677,13 +679,13 @@ validate_environment() {
     log "DEBUG" "Validate PROXY_GID"
     validate_numeric_env "PROXY_GID" "$PROXY_GID_ENV" 0 65535
   fi
-  
+
   # Validate WARP endpoint
   log "DEBUG" "Validate WARP_ENDPOINT"
   if [ -n "$WARP_ENDPOINT" ]; then
     validate_warp_endpoint "$WARP_ENDPOINT"
   fi
-  
+
   # Validate Amnezia parameters if enabled
   if [ -n "$WARP_AMNEZIA" ]; then
     log "DEBUG" "Validate WARP_AMNEZIA_* params"
