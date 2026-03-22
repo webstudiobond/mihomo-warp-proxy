@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
@@ -177,11 +178,17 @@ func redactArgs(args []string) string {
 // wgcf may create them with broader permissions depending on the system umask.
 func secureFiles(cfg *config.Config) error {
 	for _, path := range []string{cfg.Paths.WgcfAccountFile, cfg.Paths.WgcfProfileFile} {
-		if !fileExists(path) {
-			continue
+		f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("wgcf: open %q: %w", path, err)
 		}
-		if err := os.Chmod(path, 0600); err != nil {
-			return fmt.Errorf("wgcf: chmod %q: %w", path, err)
+		chmodErr := f.Chmod(0600)
+		_ = f.Close()
+		if chmodErr != nil {
+			return fmt.Errorf("wgcf: chmod %q: %w", path, chmodErr)
 		}
 	}
 	return nil
