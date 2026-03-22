@@ -28,6 +28,7 @@ package mihomo
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"os"
 	"path/filepath"
@@ -39,6 +40,8 @@ import (
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/wgcf"
 )
+
+const maxConfigSize = 1024 * 1024 // 1 MB limit to prevent YAML bomb DoS
 
 // EnsureConfig creates config.yaml from a minimal template when it does not
 // exist, then patches it with current environment values.
@@ -86,9 +89,18 @@ func createTemplate(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte)
 // key order and comments), updates only owned fields in place, and writes the
 // result back atomically.
 func patchConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, log *logging.Logger) error {
-	raw, err := os.ReadFile(cfg.Paths.MihomoConfigFile)
+	f, err := os.Open(cfg.Paths.MihomoConfigFile)
+	if err != nil {
+		return fmt.Errorf("open config: %w", err)
+	}
+	defer f.Close()
+
+	raw, err := io.ReadAll(io.LimitReader(f, maxConfigSize+1))
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
+	}
+	if len(raw) > maxConfigSize {
+		return fmt.Errorf("config file exceeds max allowed size of %d bytes", maxConfigSize)
 	}
 
 	// Unmarshal into yaml.Node to preserve key order, comments and style.
