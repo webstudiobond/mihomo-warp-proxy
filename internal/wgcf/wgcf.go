@@ -13,10 +13,15 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"io"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
 )
+
+// maxWgcfFileSize caps reads of wgcf-generated files to prevent OOM if an
+// attacker replaces them with oversized content in the mounted volume.
+const maxWgcfFileSize = 64 * 1024 // 64 KB — wgcf files are never larger than a few KB
 
 // Profile holds the WireGuard parameters extracted from wgcf-profile.conf
 // that are needed to populate the mihomo proxy block.
@@ -108,9 +113,18 @@ func ParseProfile(cfg *config.Config) (*Profile, error) {
 
 	// #nosec G304 -- Path is strictly internal (cfg.Paths.WgcfProfileFile) and
 	// its permission boundaries are asserted directly above this call.
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("wgcf: read profile %q: %w", path, err)
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(io.LimitReader(f, maxWgcfFileSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("wgcf: read profile %q: %w", path, err)
+	}
+	if len(data) > maxWgcfFileSize {
+		return nil, fmt.Errorf("wgcf: profile %q exceeds 64KB limit", path)
 	}
 
 	p, err := parseINI(string(data))

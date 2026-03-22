@@ -19,6 +19,10 @@ import (
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
 )
 
+// maxAccountFileSize caps reads of wgcf-account.toml to prevent OOM.
+const maxAccountFileSize = 64 * 1024 // 64 KB
+
+
 const (
 	warpAPIBase    = "https://api.cloudflareclient.com/v0a2158/reg"
 	apiTimeout     = 30 * time.Second
@@ -158,9 +162,18 @@ func decodeClientID(clientID string) ([3]byte, error) {
 func parseAccountFile(path string) (*accountFields, error) {
 	// #nosec G304 -- Path is strictly internal (cfg.Paths.WgcfAccountFile),
 	// verified by the caller (checkFilePermissions).
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(io.LimitReader(f, maxAccountFileSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxAccountFileSize {
+		return nil, fmt.Errorf("account file %q exceeds 64KB limit", path)
 	}
 
 	fields := &accountFields{}
