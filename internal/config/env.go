@@ -680,3 +680,18 @@ func validateGeoCredential(name, value string) error {
 	}
 	return nil
 }
+
+// FilterEnviron removes sensitive credentials from the environment slice.
+func FilterEnviron(environ []string) []string {
+	var clean []string
+	for _, e := range environ {
+		if key, _, ok := strings.Cut(e, "="); ok {
+			switch key {
+			case "PROXY_PASS", "GEO_AUTH_USER", "GEO_AUTH_PASS", "WARP_PLUS_KEY":
+				continue
+			}
+		}
+		clean = append(clean, e)
+	}
+	return clean
+}

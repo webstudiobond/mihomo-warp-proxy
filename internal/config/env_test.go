@@ -1,6 +1,7 @@
 package config
 
 import (
+    "reflect"
 	"strings"
 	"testing"
 )
@@ -474,5 +475,31 @@ func TestLoadProxyUIDGIDValidation(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+// --- FilterEnviron ---
+
+func TestFilterEnviron(t *testing.T) {
+	input := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin",
+		"PROXY_USER=admin",
+		"PROXY_PASS=supersecret32chars!!!",
+		"GEO_AUTH_USER=alice",
+		"GEO_AUTH_PASS=bob",
+		"WARP_PLUS_KEY=1234-5678-90ab",
+		"TZ=UTC",
+		"INVALID_ENV_VAR",
+	}
+	want := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin",
+		"PROXY_USER=admin",
+		"TZ=UTC",
+		"INVALID_ENV_VAR",
+	}
+
+	got := FilterEnviron(input)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("FilterEnviron() = %v, want %v", got, want)
 	}
 }

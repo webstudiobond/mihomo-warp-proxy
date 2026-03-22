@@ -12,7 +12,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 	"syscall"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/backup"
@@ -121,21 +120,6 @@ func runWarpSetup(cfg *config.Config, log *logging.Logger) error {
 	// ensureConfig logs internally
 }
 
-// filterEnv removes sensitive credentials from the environment.
-func filterEnv(environ []string) []string {
-	var clean []string
-	for _, e := range environ {
-		if key, _, ok := strings.Cut(e, "="); ok {
-			switch key {
-			case "PROXY_PASS", "GEO_AUTH_USER", "GEO_AUTH_PASS", "WARP_PLUS_KEY":
-				continue
-			}
-		}
-		clean = append(clean, e)
-	}
-	return clean
-}
-
 // execMihomo replaces the current process with the mihomo binary.
 // This call never returns on success.
 func execMihomo(cfg *config.Config, log *logging.Logger) {
@@ -149,7 +133,7 @@ func execMihomo(cfg *config.Config, log *logging.Logger) {
 
 	// #nosec G204 -- Arguments are strictly constructed from statically validated
 	// internal constants and safe configuration values. No untrusted input is passed.
-	if err := syscall.Exec(cfg.Paths.MihomoBin, args, filterEnv(os.Environ())); err != nil {
+	if err := syscall.Exec(cfg.Paths.MihomoBin, args, config.FilterEnviron(os.Environ())); err != nil {
 		log.Fatalf("exec mihomo: %v", err)
 	}
 }
