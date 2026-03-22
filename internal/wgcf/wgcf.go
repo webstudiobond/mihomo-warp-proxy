@@ -1,6 +1,9 @@
 // Package wgcf manages the Cloudflare WARP WireGuard configuration lifecycle
 // via the wgcf binary. It handles account registration, WARP+ key updates,
 // profile generation, and parsing of the resulting WireGuard INI profile.
+// Note: runWgcf logs CombinedOutput of the wgcf process. If a future version
+// of wgcf echoes sensitive flags in its output, sanitizeOutput will not redact
+// them — only the argument list is masked via redactArgs.
 package wgcf
 
 import (

@@ -28,9 +28,10 @@ package mihomo
 
 import (
 	"fmt"
+	"strconv"
 	"os"
 	"path/filepath"
-	"strings"
+	"net"
 
 	"gopkg.in/yaml.v3"
 
@@ -454,19 +455,15 @@ func applyGeoFieldsMap(doc map[string]any, cfg *config.Config) {
 // ── endpoint helper ───────────────────────────────────────────────────────────
 
 // splitEndpoint splits "host:port" into host string and port int.
+// Uses net.SplitHostPort for robustness; endpoint is pre-validated by validateWarpEndpoint.
 func splitEndpoint(endpoint string) (string, int) {
-	idx := strings.LastIndex(endpoint, ":")
-	if idx < 0 {
+	host, portStr, err := net.SplitHostPort(endpoint)
+	if err != nil {
 		return endpoint, 0
 	}
-	host := endpoint[:idx]
-	portStr := endpoint[idx+1:]
-	port := 0
-	for _, r := range portStr {
-		if r < '0' || r > '9' {
-			return host, 0
-		}
-		port = port*10 + int(r-'0')
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return host, 0
 	}
 	return host, port
 }
