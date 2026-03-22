@@ -58,6 +58,11 @@ GEO=false
 # Force re-download of geodata even if the remote files have not changed.
 GEO_REDOWNLOAD=false
 
+# Allow mihomo to automatically re-download geodata files every 24 hours while
+# the container is running. Independent of GEO_REDOWNLOAD, which controls
+# forced re-download on container startup.
+GEO_AUTO_UPDATE=false
+
 # Geodata download URLs. Override to use an internal mirror or a CDN
 # instead of the default GitHub releases — useful in corporate environments
 # where a single host downloads once and the rest of the fleet pulls locally.

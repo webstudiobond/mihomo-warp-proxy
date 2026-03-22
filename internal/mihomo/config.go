@@ -142,7 +142,7 @@ func applyOwnedFieldsNode(doc *yaml.Node, cfg *config.Config) {
 func applyGeoFieldsNode(doc *yaml.Node, cfg *config.Config) {
 	setNodeScalar(doc, "geodata-mode", "!!bool", "true")
 	setNodeScalar(doc, "geodata-loader", "!!str", "memconservative")
-	setNodeScalar(doc, "geo-auto-update", "!!bool", boolStr(cfg.Geo.Redownload))
+	setNodeScalar(doc, "geo-auto-update", "!!bool", boolStr(cfg.Geo.AutoUpdate))
 	setNodeScalar(doc, "geo-update-interval", "!!int", "24")
 
 	geoMap := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
@@ -246,6 +246,7 @@ func buildWarpProxy(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte)
 
 	addStr("name", "warp")
 	addStr("type", "wireguard")
+	addStr("client-fingerprint", "chrome")
 	addStr("server", server)
 	addInt("port", port)
 	addStr("ip", profile.IPv4)
@@ -440,7 +441,7 @@ func applyOwnedFieldsMap(doc map[string]any, cfg *config.Config) {
 func applyGeoFieldsMap(doc map[string]any, cfg *config.Config) {
 	doc["geodata-mode"] = true
 	doc["geodata-loader"] = "memconservative"
-	doc["geo-auto-update"] = cfg.Geo.Redownload
+	doc["geo-auto-update"] = cfg.Geo.AutoUpdate
 	doc["geo-update-interval"] = 24
 	doc["geox-url"] = map[string]any{
 		"geoip":   cfg.Geo.URLs.GeoIP,

@@ -43,6 +43,7 @@ type GeoURLs struct {
 type GeoConfig struct {
 	Enabled    bool
 	Redownload bool
+	AutoUpdate bool
 	URLs       GeoURLs
 	AuthUser   string
 	AuthPass   string
@@ -193,6 +194,11 @@ func loadGeoConfig() (GeoConfig, error) {
 	}
 
 	g.Redownload, err = parseBoolEnv("GEO_REDOWNLOAD", "false")
+	if err != nil {
+		return g, err
+	}
+
+	g.AutoUpdate, err = parseBoolEnv("GEO_AUTO_UPDATE", "false")
 	if err != nil {
 		return g, err
 	}
