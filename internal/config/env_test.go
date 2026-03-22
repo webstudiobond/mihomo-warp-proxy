@@ -352,6 +352,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Geo.Redownload {
 		t.Error("Geo.Redownload: got true, want false")
 	}
+	if cfg.Geo.AutoUpdate {
+		t.Error("Geo.AutoUpdate: got true, want false")
+	}
 	if !cfg.Warp.Enabled {
 		t.Error("Warp.Enabled: got false, want true")
 	}
