@@ -222,7 +222,7 @@ func reexecAsUser(cfg *config.Config, log *logging.Logger) error {
 
 	log.Debugf("usermode: re-execing as %s via su-exec", uidGid)
 
-	return syscall.Exec(suExec, args, os.Environ())
+	return syscall.Exec(suExec, args, config.FilterEnviron(os.Environ()))
 }
 
 // isDirOwnedBy returns true when the directory's owner matches uid:gid.
