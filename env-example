@@ -1,0 +1,123 @@
+# ── Image ─────────────────────────────────────────────────────────────────────
+
+# Image version to pull from the registry. Use "latest" to always get the
+# newest release, or pin to a specific version tag (e.g. 1.19.21).
+MWP_VERSION=latest
+
+# CPU microarchitecture variant for linux/amd64 hosts.
+# Leave empty on ARM64 machines — the registry serves the correct image automatically.
+# To detect your level, run on the target host:
+#   grep -q avx2 /proc/cpuinfo && echo v3 || { grep -q sse4_2 /proc/cpuinfo && echo v2 || echo v1; }
+# v1 — baseline x86-64 (works on any amd64 machine, safe default)
+# v2 — SSE4.2 (most servers/desktops from ~2010 onward)
+# v3 — AVX2 (modern servers/desktops from ~2013 onward, best performance)
+MIHOMO_CPU_VARIANT=
+
+# ── Timezone ──────────────────────────────────────────────────────────────────
+TZ=UTC
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+
+# Entrypoint script log level. Controls how much the container startup process logs.
+# DEBUG, INFO, WARN, ERROR
+SCRIPT_LOG_LEVEL=ERROR
+
+# Mihomo proxy log level. Controls runtime proxy logs written by mihomo itself.
+# silent, error, warning, info, debug
+PROXY_LOG_LEVEL=error
+
+# ── Privilege drop ────────────────────────────────────────────────────────────
+# When the container starts as root, it drops privileges to this UID:GID before
+# launching mihomo. Ignored when the container is started with --user directly.
+PROXY_UID=911
+PROXY_GID=911
+
+# ── Proxy ─────────────────────────────────────────────────────────────────────
+
+# Mixed SOCKS5/HTTP(S) proxy port exposed by mihomo.
+PROXY_PORT=7890
+
+# Proxy authentication credentials.
+# Generate with: pwgen -s 64 1   (user)
+#                pwgen -s 128 1  (password)
+PROXY_USER=
+PROXY_PASS=
+
+# ── Network ───────────────────────────────────────────────────────────────────
+
+# Enable IPv6 in the mihomo configuration.
+USE_IP6=true
+
+# ── Geodata ───────────────────────────────────────────────────────────────────
+
+# Download geodata files (GeoIP, GeoSite, MMDB, ASN) at container startup.
+# Enable this when you want to write custom routing rules based on geo data.
+# For a plain WARP proxy without custom rules this is not needed.
+GEO=false
+
+# Force re-download of geodata even if the remote files have not changed.
+GEO_REDOWNLOAD=false
+
+# Geodata download URLs. Override to use an internal mirror or a CDN
+# instead of the default GitHub releases — useful in corporate environments
+# where a single host downloads once and the rest of the fleet pulls locally.
+GEO_URL_GEOIP=https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat
+GEO_URL_GEOSITE=https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat
+GEO_URL_MMDB=https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb
+GEO_URL_ASN=https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb
+
+# HTTP Basic Auth credentials for the geodata URLs above.
+# Leave empty when pulling from public sources.
+GEO_AUTH_USER=
+GEO_AUTH_PASS=
+
+# ── WARP ──────────────────────────────────────────────────────────────────────
+
+# Use wgcf to register a Cloudflare WARP account and generate a WireGuard
+# profile. When true, mihomo routes all traffic through WARP.
+# When false, a minimal config with MATCH,DIRECT is created instead.
+USE_WARP_CONFIG=true
+
+# Force wgcf to register a new account and regenerate the profile on startup,
+# discarding any existing wgcf-account.toml and wgcf-profile.conf.
+WARP_REGENERATE=false
+
+# WARP+ license key. When set, the registered account is upgraded to WARP+
+# and the profile is regenerated to reflect the new tier.
+WARP_PLUS_KEY=
+
+# WARP UDP endpoint. Allowed ports: 2408, 500, 4500, 1701.
+WARP_ENDPOINT=engage.cloudflareclient.com:500
+
+# DNS resolvers injected into the mihomo WireGuard proxy block.
+# Accepts IPv4, IPv6, DoT (tls://), DoH (https://), DoQ (quic://).
+WARP_DNS=1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001
+
+# ── AmneziaWG ─────────────────────────────────────────────────────────────────
+# AmneziaWG adds junk packet obfuscation on top of WireGuard to disguise the
+# protocol from DPI systems. See https://docs.amnezia.org/documentation/amnezia-wg/
+WARP_AMNEZIA=false
+
+# Junk packet count injected per handshake. Range: 1–128.
+WARP_AMNEZIA_JC=5
+
+# Minimum junk packet size in bytes. Must be less than WARP_AMNEZIA_JMAX.
+WARP_AMNEZIA_JMIN=7
+
+# Maximum junk packet size in bytes. Range: WARP_AMNEZIA_JMIN < jmax ≤ 1280.
+WARP_AMNEZIA_JMAX=15
+
+# AmneziaWG v2 init packet templates (I1–I5).
+# Each value is a sequence of typed tags that define the structure of the
+# first packets sent during connection setup:
+#   <b 0xHEX>   static bytes (arbitrary hex sequence)
+#   <c>         32-bit packet counter, network byte order, unique per sequence
+#   <t>         32-bit Unix timestamp, network byte order, unique per sequence
+#   <r N>       N cryptographically random bytes, 0 ≤ N ≤ 1000
+#   <wt N>      wait N ms before sending the next segment, 0 ≤ N ≤ 5000
+# Leave empty to disable the corresponding init packet slot.
+WARP_AMNEZIA_I1="<b 0xf6ab3267fa><c><b 0xf6ab><t><r 10><wt 10>"
+WARP_AMNEZIA_I2="<b 0xf6ab3267fa><r 100>"
+WARP_AMNEZIA_I3=
+WARP_AMNEZIA_I4=
+WARP_AMNEZIA_I5=
