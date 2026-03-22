@@ -1,0 +1,30 @@
+# ── Go ────────────────────────────────────────────────────────────────────────
+# Compiled binaries
+/entrypoint
+/entrypoint-linux
+*.exe
+
+# Test cache and coverage
+*.out
+*.test
+
+# Go workspace
+go.work
+go.work.sum
+
+# ── Environment ───────────────────────────────────────────────────────────────
+# Never commit real credentials
+.env
+
+# ── Docker runtime data ───────────────────────────────────────────────────────
+# Mounted volumes — contain wgcf account keys and mihomo config with credentials
+mihomo-data/
+wgcf-data/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

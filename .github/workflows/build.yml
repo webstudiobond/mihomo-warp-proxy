@@ -1,0 +1,192 @@
+name: Build and Publish Docker Image
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  check:
+    name: Check for upstream updates
+    runs-on: ubuntu-latest
+    outputs:
+      needs_build: ${{ steps.check.outputs.needs_build }}
+      mihomo_ver:  ${{ steps.check.outputs.mihomo_ver }}
+      wgcf_ver:    ${{ steps.check.outputs.wgcf_ver }}
+      alpine_dig:  ${{ steps.check.outputs.alpine_dig }}
+      go_dig:      ${{ steps.check.outputs.go_dig }}
+      image_base:  ${{ steps.check.outputs.image_base }}
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Resolve upstream versions and image digests
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          MIHOMO_VER=$(curl -sfL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            https://api.github.com/repos/MetaCubeX/mihomo/releases/latest \
+            | jq -r .tag_name | sed 's/^v//')
+
+          WGCF_VER=$(curl -sfL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            https://api.github.com/repos/ViRb3/wgcf/releases/latest \
+            | jq -r .tag_name | sed 's/^v//')
+
+          ALPINE_DIG=$(skopeo inspect docker://alpine:3.23 | jq -r .Digest)
+          GO_DIG=$(skopeo inspect docker://golang:1.26-alpine3.23 | jq -r .Digest)
+
+          IMAGE_BASE=$(echo "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
+
+          echo "mihomo_ver=${MIHOMO_VER}" >> "$GITHUB_OUTPUT"
+          echo "wgcf_ver=${WGCF_VER}"     >> "$GITHUB_OUTPUT"
+          echo "alpine_dig=${ALPINE_DIG}" >> "$GITHUB_OUTPUT"
+          echo "go_dig=${GO_DIG}"         >> "$GITHUB_OUTPUT"
+          echo "image_base=${IMAGE_BASE}" >> "$GITHUB_OUTPUT"
+
+          if skopeo inspect "docker://${IMAGE_BASE}:latest" > meta.json 2>/dev/null; then
+            OUR_MIHOMO=$(jq -r '.Labels["org.opencontainers.image.version"] // "none"' meta.json)
+            OUR_WGCF=$(jq -r   '.Labels["dev.wgcf.version"]                // "none"' meta.json)
+            OUR_ALPINE=$(jq -r  '.Labels["dev.alpine.digest"]              // "none"' meta.json)
+            OUR_GO=$(jq -r      '.Labels["dev.golang.digest"]              // "none"' meta.json)
+          else
+            OUR_MIHOMO="none"; OUR_WGCF="none"; OUR_ALPINE="none"; OUR_GO="none"
+          fi
+
+          echo "--- Upstream vs published ---"
+          echo "  mihomo : ${MIHOMO_VER} (was: ${OUR_MIHOMO})"
+          echo "  wgcf   : ${WGCF_VER}  (was: ${OUR_WGCF})"
+          echo "  alpine : ${ALPINE_DIG} (was: ${OUR_ALPINE})"
+          echo "  go     : ${GO_DIG} (was: ${OUR_GO})"
+
+          if [ "${MIHOMO_VER}" != "${OUR_MIHOMO}"  ] || \
+             [ "${WGCF_VER}"   != "${OUR_WGCF}"    ] || \
+             [ "${ALPINE_DIG}" != "${OUR_ALPINE}"  ] || \
+             [ "${GO_DIG}"     != "${OUR_GO}"       ] || \
+             [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "needs_build=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_build=false" >> "$GITHUB_OUTPUT"
+            echo "All components up to date, skipping build."
+          fi
+
+  build:
+    name: Build (${{ matrix.platform }}, ${{ matrix.cpu_variant || 'default' }})
+    needs: check
+    if: needs.check.outputs.needs_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # linux/amd64-v1: pushed to a temporary platform-specific tag.
+          # Merged with arm64 into the default fat-manifest tag by the merge job.
+          - platform: linux/amd64
+            cpu_variant: v1
+            push_tag_suffix: -amd64v1
+
+          - platform: linux/amd64
+            cpu_variant: v2
+            push_tag_suffix: -amd64v2
+
+          - platform: linux/amd64
+            cpu_variant: v3
+            push_tag_suffix: -amd64v3
+
+          # linux/arm64: also pushed to a temporary tag, merged into fat manifest.
+          - platform: linux/arm64
+            cpu_variant: ""
+            push_tag_suffix: -arm64
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: docker/setup-qemu-action@v3.6.0
+
+      - uses: docker/setup-buildx-action@v3.10.0
+
+      - uses: docker/login-action@v3.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push platform image
+        uses: docker/build-push-action@v6.15.0
+        with:
+          context: .
+          push: true
+          platforms: ${{ matrix.platform }}
+          # Intermediate per-platform tags — consumed by the merge job.
+          tags: |
+            ${{ needs.check.outputs.image_base }}:${{ needs.check.outputs.mihomo_ver }}${{ matrix.push_tag_suffix }}
+          build-args: |
+            MIHOMO_VERSION=${{ needs.check.outputs.mihomo_ver }}
+            WGCF_VERSION=${{ needs.check.outputs.wgcf_ver }}
+            MIHOMO_CPU_VARIANT=${{ matrix.cpu_variant }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.check.outputs.mihomo_ver }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Cloudflare WARP SOCKS5/HTTP(S) proxy via mihomo (Clash Meta)
+            dev.wgcf.version=${{ needs.check.outputs.wgcf_ver }}
+            dev.alpine.digest=${{ needs.check.outputs.alpine_dig }}
+            dev.golang.digest=${{ needs.check.outputs.go_dig }}
+
+  merge:
+    name: Merge fat manifests
+    needs: [check, build]
+    if: needs.check.outputs.needs_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: docker/login-action@v3.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create default fat manifest (amd64v1 + arm64)
+        # The default tag (:latest, :1.19.21) contains amd64-v1 and arm64.
+        # Docker automatically selects the correct layer on pull by platform.
+        # Users who need v2/v3 set MIHOMO_CPU_VARIANT in .env — those are
+        # single-platform tags and do not need a fat manifest.
+        run: |
+          BASE=${{ needs.check.outputs.image_base }}
+          VER=${{ needs.check.outputs.mihomo_ver }}
+
+          docker buildx imagetools create \
+            --tag "${BASE}:${VER}" \
+            --tag "${BASE}:latest" \
+            "${BASE}:${VER}-amd64v1" \
+            "${BASE}:${VER}-arm64"
+
+      - name: Create versioned tags for v2 and v3
+        # These are single-platform convenience tags for amd64 operators who
+        # explicitly opt in to a higher microarchitecture level.
+        run: |
+          BASE=${{ needs.check.outputs.image_base }}
+          VER=${{ needs.check.outputs.mihomo_ver }}
+
+          docker buildx imagetools create \
+            --tag "${BASE}:${VER}-amd64v2" \
+            --tag "${BASE}:latest-amd64v2" \
+            "${BASE}:${VER}-amd64v2"
+
+          docker buildx imagetools create \
+            --tag "${BASE}:${VER}-amd64v3" \
+            --tag "${BASE}:latest-amd64v3" \
+            "${BASE}:${VER}-amd64v3"
