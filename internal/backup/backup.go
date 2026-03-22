@@ -10,6 +10,11 @@ import (
 	"path/filepath"
 )
 
+// maxBackupSize mirrors the config file size limit in mihomo/config.go.
+// Both limits must be kept in sync — a config that passes the backup check
+// must also pass the parse check on the next read.
+const maxBackupSize = 1024 * 1024 // 1 MB
+
 // ConfigFile atomically copies src to src+".back" if src exists, is non-empty,
 // and its parent directory is writable by the current process.
 //
@@ -82,8 +87,13 @@ func atomicCopy(src, dst, tmpDir string) error {
 		return fmt.Errorf("backup: chmod temp file: %w", err)
 	}
 
-	if _, err := io.Copy(tmp, in); err != nil {
+	limited := io.LimitReader(in, maxBackupSize+1)
+	n, err := io.Copy(tmp, limited)
+	if err != nil {
 		return fmt.Errorf("backup: copy content to temp file: %w", err)
+	}
+	if n > maxBackupSize {
+		return fmt.Errorf("backup: source file %q exceeds 1MB limit", src)
 	}
 
 	if err := tmp.Sync(); err != nil {
