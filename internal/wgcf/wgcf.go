@@ -192,6 +192,7 @@ func redactArgs(args []string) string {
 // wgcf may create them with broader permissions depending on the system umask.
 func secureFiles(cfg *config.Config) error {
 	for _, path := range []string{cfg.Paths.WgcfAccountFile, cfg.Paths.WgcfProfileFile} {
+	    // #nosec G304 -- Paths are static constants strictly validated on startup.
 		f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 		if err != nil {
 			if os.IsNotExist(err) {
