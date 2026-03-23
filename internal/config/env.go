@@ -119,6 +119,10 @@ func Load(version string) (*Config, error) {
 
 	var err error
 
+	if err = validatePaths(cfg.Paths); err != nil {
+		return nil, err
+	}
+
 	cfg.TZ = getEnv("TZ", "UTC")
 	if err = validateTZ(cfg.TZ); err != nil {
 		return nil, err
@@ -687,4 +691,29 @@ func FilterEnviron(environ []string) []string {
 		clean = append(clean, e)
 	}
 	return clean
+}
+
+// validatePaths ensures all core filesystem locations pass security boundaries,
+// providing defense-in-depth if these paths ever become user-configurable.
+func validatePaths(p Paths) error {
+	paths := []struct {
+		name string
+		path string
+	}{
+		{"MihomoData", p.MihomoData},
+		{"MihomoConfigFile", p.MihomoConfigFile},
+		{"WgcfData", p.WgcfData},
+		{"WgcfAccountFile", p.WgcfAccountFile},
+		{"WgcfProfileFile", p.WgcfProfileFile},
+		{"MihomoBin", p.MihomoBin},
+		{"WgcfBin", p.WgcfBin},
+		{"SuExecBin", p.SuExecBin},
+		{"VersionFile", p.VersionFile},
+	}
+	for _, target := range paths {
+		if err := validate.Path(target.path, target.name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
