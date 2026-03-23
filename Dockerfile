@@ -47,7 +47,7 @@ ARG MIHOMO_CPU_VARIANT=v1
 # hadolint ignore=DL4006
 RUN WGCF_VERSION=$(wget -q -O - \
         "https://api.github.com/repos/ViRb3/wgcf/releases/latest" \
-        | jq -r '.tag_name' | sed 's/^v//') && \
+        | jq -r '.tag_name // empty' | sed 's/^v//') && \
     [ -n "${WGCF_VERSION}" ] || { echo "ERROR: could not resolve latest wgcf version"; exit 1; } && \
     echo "Resolved wgcf version: ${WGCF_VERSION}" && \
     WGCF_FILE="wgcf_${WGCF_VERSION}_linux_${TARGETARCH}" && \
@@ -67,7 +67,7 @@ RUN WGCF_VERSION=$(wget -q -O - \
 # hadolint ignore=DL4006
 RUN MIHOMO_VERSION=$(wget -q -O - \
         "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" \
-        | jq -r '.tag_name' | sed 's/^v//') && \
+        | jq -r '.tag_name // empty' | sed 's/^v//') && \
     [ -n "${MIHOMO_VERSION}" ] || { echo "ERROR: could not resolve latest mihomo version"; exit 1; } && \
     echo "Resolved mihomo version: ${MIHOMO_VERSION}" && \
     if [ "${TARGETARCH}" = "amd64" ]; then \
@@ -101,7 +101,6 @@ RUN apk add --no-cache \
         tini \
         curl \
         tzdata \
-    && rm -rf /var/cache/apk/* \
     && addgroup -g 911 -S mihomo \
     && adduser  -u 911 -D -S -G mihomo mihomo
 
