@@ -228,6 +228,7 @@ func reexecAsUser(cfg *config.Config, log *logging.Logger) error {
 
 	log.Debugf("usermode: re-execing as %s via su-exec", uidGid)
 
+	// #nosec G204 -- suExec path and arguments are internally constructed from config.
 	return syscall.Exec(suExec, args, config.FilterEnviron(os.Environ()))
 }
 
@@ -262,6 +263,7 @@ func chownDirRecursive(dir string, uid, gid int) error {
 		if err != nil {
 			return nil // skip inaccessible entries
 		}
+		// #nosec G122 -- Lchown prevents symlink traversal; dir is exclusively controlled.
 		return os.Lchown(path, uid, gid)
 	})
 }
