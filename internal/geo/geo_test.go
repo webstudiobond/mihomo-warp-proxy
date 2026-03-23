@@ -2,9 +2,12 @@ package geo
 
 import (
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
 )
 
 // --- validateGeoURL ---
@@ -280,5 +283,68 @@ func countBytes(r *limitedBody) (int64, error) {
 		if err != nil || total > int64(maxFileSize) {
 			return total, err
 		}
+	}
+}
+
+// --- applyAuth cross-origin redirect protection ---
+
+func TestApplyAuthCrossOriginProtection(t *testing.T) {
+	cfg := &config.Config{
+		Geo: config.GeoConfig{
+			AuthUser: "testuser",
+			AuthPass: "testpass",
+		},
+	}
+
+	cases := []struct {
+		name      string
+		reqURL    string
+		origHost  string
+		wantAuth  bool
+	}{
+		{
+			name:     "same host — credentials applied",
+			reqURL:   "https://cdn.example.com/geoip.dat",
+			origHost: "cdn.example.com",
+			wantAuth: true,
+		},
+		{
+			name:     "cross-origin redirect — credentials withheld",
+			reqURL:   "https://attacker.example.com/geoip.dat",
+			origHost: "cdn.example.com",
+			wantAuth: false,
+		},
+		{
+			name:     "subdomain treated as different host — credentials withheld",
+			reqURL:   "https://sub.cdn.example.com/geoip.dat",
+			origHost: "cdn.example.com",
+			wantAuth: false,
+		},
+		{
+			name:     "no credentials configured — header absent",
+			reqURL:   "https://cdn.example.com/geoip.dat",
+			origHost: "cdn.example.com",
+			wantAuth: false,
+			// override cfg inline below
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := cfg
+			if tc.name == "no credentials configured — header absent" {
+				c = &config.Config{}
+			}
+			parsed, err := url.Parse(tc.reqURL)
+			if err != nil {
+				t.Fatalf("url.Parse(%q): %v", tc.reqURL, err)
+			}
+			req := &http.Request{URL: parsed, Header: http.Header{}}
+			applyAuth(req, c, tc.origHost)
+			hasAuth := req.Header.Get("Authorization") != ""
+			if hasAuth != tc.wantAuth {
+				t.Errorf("Authorization present=%v, want %v", hasAuth, tc.wantAuth)
+			}
+		})
 	}
 }

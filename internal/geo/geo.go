@@ -67,10 +67,16 @@ func download(client *http.Client, cfg *config.Config, log *logging.Logger, rawU
 		return fmt.Errorf("geo: invalid URL %q: %w", rawURL, err)
 	}
 
+	origURL, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("geo: parse original URL %q: %w", rawURL, err)
+	}
+	origHost := origURL.Hostname()
+
 	log.Debugf("geo: checking %s -> %s", rawURL, dst)
 
 	// HEAD request to retrieve cache-validation headers without downloading the body.
-	meta, finalURL, err := fetchMeta(client, cfg, rawURL)
+	meta, finalURL, err := fetchMeta(client, cfg, rawURL, origHost)
 	if err != nil {
 		return fmt.Errorf("geo: HEAD %q: %w", rawURL, err)
 	}
@@ -84,7 +90,7 @@ func download(client *http.Client, cfg *config.Config, log *logging.Logger, rawU
 	}
 
 	log.Debugf("geo: downloading %s", filepath.Base(dst))
-	if err := streamToFile(client, cfg, finalURL, dst); err != nil {
+	if err := streamToFile(client, cfg, finalURL, origHost, dst); err != nil {
 		return fmt.Errorf("geo: download %q: %w", rawURL, err)
 	}
 
@@ -104,7 +110,7 @@ func download(client *http.Client, cfg *config.Config, log *logging.Logger, rawU
 // fetchMeta performs a HEAD request, following redirects manually so every
 // hop can be validated against the SSRF blocklist. Returns the response
 // headers of the final response and the final URL.
-func fetchMeta(client *http.Client, cfg *config.Config, rawURL string) (http.Header, string, error) {
+func fetchMeta(client *http.Client, cfg *config.Config, rawURL, origHost string) (http.Header, string, error) {
 	current := rawURL
 
 	for i := 0; i < maxRedirects; i++ {
@@ -116,7 +122,7 @@ func fetchMeta(client *http.Client, cfg *config.Config, rawURL string) (http.Hea
 		if err != nil {
 			return nil, "", err
 		}
-		applyAuth(req, cfg)
+		applyAuth(req, cfg, origHost)
 
 		ctx, cancel := context.WithTimeout(context.Background(), headTimeout)
 		resp, err := client.Do(req.WithContext(ctx))
@@ -152,12 +158,12 @@ func fetchMeta(client *http.Client, cfg *config.Config, rawURL string) (http.Hea
 // streamToFile downloads rawURL to dst via a secure temp file in the same
 // directory, then atomically renames it. The body is capped at maxFileSize
 // to prevent unbounded disk writes from a malicious or broken server.
-func streamToFile(client *http.Client, cfg *config.Config, rawURL, dst string) error {
+func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst string) error {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return err
 	}
-	applyAuth(req, cfg)
+	applyAuth(req, cfg, origHost)
 
 	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
 	defer cancel()
@@ -344,9 +350,11 @@ func resolveRedirect(current, location string) (string, error) {
 	return resolved, nil
 }
 
-// applyAuth sets HTTP Basic Auth on req when GEO credentials are configured.
-func applyAuth(req *http.Request, cfg *config.Config) {
-	if cfg.Geo.AuthUser != "" && cfg.Geo.AuthPass != "" {
+// applyAuth sets HTTP Basic Auth on req when GEO credentials are configured
+// and the request destination matches the original hostname. This prevents
+// credential leakage if the server redirects to a third-party domain.
+func applyAuth(req *http.Request, cfg *config.Config, origHost string) {
+	if cfg.Geo.AuthUser != "" && cfg.Geo.AuthPass != "" && req.URL.Hostname() == origHost {
 		req.SetBasicAuth(cfg.Geo.AuthUser, cfg.Geo.AuthPass)
 	}
 }
