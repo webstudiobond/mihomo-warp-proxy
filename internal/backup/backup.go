@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
+	"github.com/webstudiobond/mihomo-warp-proxy/internal/validate"
 )
 
 // maxBackupSize mirrors the config file size limit in mihomo/config.go.
@@ -33,6 +34,10 @@ func ConfigFile(src string) error {
 		src = resolved
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("backup: resolve path %q: %w", src, err)
+	}
+
+	if err := validate.Path(src, "backup_source"); err != nil {
+		return fmt.Errorf("backup: security violation on resolved path: %w", err)
 	}
 
 	dir := filepath.Dir(src)
