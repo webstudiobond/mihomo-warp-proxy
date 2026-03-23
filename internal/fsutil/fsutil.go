@@ -2,7 +2,6 @@ package fsutil
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -54,41 +53,6 @@ func AtomicWrite(filename string, data []byte, perm os.FileMode) error {
 		return fmt.Errorf("write data: %w", err)
 	}
 	if err := atomicFinish(f, tmpName, filename); err != nil {
-		return err
-	}
-	done = true
-	return nil
-}
-
-// AtomicCopy copies a file from src to dst atomically.
-func AtomicCopy(src, dst string, perm os.FileMode, maxSize int64) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("open source %q: %w", src, err)
-	}
-	defer in.Close()
-
-	f, tmpName, err := createAtomicTemp(dst, perm)
-	if err != nil {
-		return err
-	}
-	done := false
-	defer func() {
-		if !done {
-			_ = f.Close()
-			_ = os.Remove(tmpName)
-		}
-	}()
-
-	limited := io.LimitReader(in, maxSize+1)
-	n, err := io.Copy(f, limited)
-	if err != nil {
-		return fmt.Errorf("copy content to temp file: %w", err)
-	}
-	if n > maxSize {
-		return fmt.Errorf("source file %q exceeds limit of %d bytes", src, maxSize)
-	}
-	if err := atomicFinish(f, tmpName, dst); err != nil {
 		return err
 	}
 	done = true
