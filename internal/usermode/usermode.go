@@ -102,11 +102,17 @@ func nonRootMultiUser(cfg *config.Config, log *logging.Logger) error {
 	}
 	log.Debugf("usermode: multi-user mode, running as %d:%d", uid, gid)
 
-	if _, err := os.Stat(cfg.Paths.MihomoData); os.IsNotExist(err) {
-		return fmt.Errorf("usermode: %s does not exist — mount the volume or run as root first", cfg.Paths.MihomoData)
+	if _, err := os.Stat(cfg.Paths.MihomoData); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("usermode: %s does not exist — mount the volume or run as root first", cfg.Paths.MihomoData)
+		}
+		return fmt.Errorf("usermode: stat %s: %w", cfg.Paths.MihomoData, err)
 	}
-	if _, err := os.Stat(cfg.Paths.WgcfData); os.IsNotExist(err) {
-		return fmt.Errorf("usermode: %s does not exist — mount the volume or run as root first", cfg.Paths.WgcfData)
+	if _, err := os.Stat(cfg.Paths.WgcfData); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("usermode: %s does not exist — mount the volume or run as root first", cfg.Paths.WgcfData)
+		}
+		return fmt.Errorf("usermode: stat %s: %w", cfg.Paths.WgcfData, err)
 	}
 
 	if !isDirWritable(cfg.Paths.MihomoData) {
