@@ -53,8 +53,8 @@ pwgen -s 128 1  # password
 ```
 
 Password requirements:
-- Username: 8–64 characters, no `:` or control characters
-- Password: 32–128 characters; at least one uppercase letter (A–Z), one lowercase   letter (a–z), one digit (0–9); no run of 4+ identical consecutive characters; at least 12 distinct characters
+- Username: 8–64 characters; no `:`, spaces, control characters, or shell metacharacters (`$`, `` ` ``, `"`, `'`, `\`, `!`, `&`, `;`, `|`, `<`, `>`)
+- Password: 32–128 characters; at least one uppercase letter (A–Z), one lowercase letter (a–z), one digit (0–9); no run of 4+ identical consecutive characters; at least 12 distinct characters; no spaces or shell metacharacters
 
 Both credentials are **required** — an open unauthenticated proxy is a security risk.
 
