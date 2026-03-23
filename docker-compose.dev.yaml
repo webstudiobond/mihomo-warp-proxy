@@ -27,8 +27,8 @@ services:
       test:
         - "CMD-SHELL"
         - >
-          curl -sf --socks5 localhost:${PROXY_PORT:-7890}
-          --proxy-user ${PROXY_USER}:${PROXY_PASS}
+          curl -sf --socks5-hostname localhost:${PROXY_PORT:-7890}
+          --proxy-user "${PROXY_USER}:${PROXY_PASS}"
           https://cp.cloudflare.com/generate_204 || exit 1
       interval: 30s
       timeout: 30s
