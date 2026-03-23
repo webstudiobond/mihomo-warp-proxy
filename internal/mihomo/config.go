@@ -47,13 +47,16 @@ const maxConfigSize = 1024 * 1024 // 1 MB limit to prevent YAML bomb DoS
 // exist, then patches it with current environment values.
 // When the file already exists only owned fields are updated.
 func EnsureConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, log *logging.Logger) error {
-	if _, err := os.Stat(cfg.Paths.MihomoConfigFile); os.IsNotExist(err) {
-		log.Debug("mihomo: config not found, creating from template")
-		if err := createTemplate(cfg, profile, reserved); err != nil {
-			return fmt.Errorf("mihomo: create template: %w", err)
+	if _, err := os.Stat(cfg.Paths.MihomoConfigFile); err != nil {
+		if os.IsNotExist(err) {
+			log.Debug("mihomo: config not found, creating from template")
+			if err := createTemplate(cfg, profile, reserved); err != nil {
+				return fmt.Errorf("mihomo: create template: %w", err)
+			}
+			log.Debug("mihomo: config created from template")
+			return nil
 		}
-		log.Debug("mihomo: config created from template")
-		return nil
+		return fmt.Errorf("mihomo: stat config: %w", err)
 	}
 
 	log.Debug("mihomo: patching existing config")
