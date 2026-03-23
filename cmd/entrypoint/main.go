@@ -86,7 +86,7 @@ func runCommonTasks(cfg *config.Config, log *logging.Logger) error {
 	}
 
 	if cfg.Warp.Enabled {
-	    log.Debug("starting warp setup")
+		log.Debug("starting warp setup")
 		return runWarpSetup(cfg, log)
 	}
 

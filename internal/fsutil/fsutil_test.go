@@ -12,7 +12,7 @@ func TestAtomicWrite(t *testing.T) {
 	file := filepath.Join(dir, "test_write.txt")
 	data := []byte("hello world")
 
-	if err := AtomicWrite(file, data, 0600); err != nil {
+	if err := AtomicWrite(file, data, 0o600); err != nil {
 		t.Fatalf("AtomicWrite failed: %v", err)
 	}
 
@@ -20,8 +20,8 @@ func TestAtomicWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to stat file: %v", err)
 	}
-	if info.Mode().Perm() != 0600 {
-		t.Errorf("Got permissions %v, want 0600", info.Mode().Perm())
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("Got permissions %v, want 0o600", info.Mode().Perm())
 	}
 
 	got, err := os.ReadFile(file)

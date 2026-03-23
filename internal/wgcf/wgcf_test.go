@@ -206,7 +206,7 @@ func TestFileExists(t *testing.T) {
 	dir := t.TempDir()
 
 	existing := filepath.Join(dir, "file.txt")
-	if err := os.WriteFile(existing, []byte("x"), 0600); err != nil {
+	if err := os.WriteFile(existing, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -242,14 +242,14 @@ func TestParseProfileUnsafePermissions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "wgcf-profile.conf")
 
-	if err := os.WriteFile(path, []byte(sampleProfile), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(sampleProfile), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	cfg := minimalCfg(path)
 	_, err := ParseProfile(cfg)
 	if err == nil {
-		t.Error("expected error for 0644 permissions, got nil")
+		t.Error("expected error for 0o644 permissions, got nil")
 	}
 }
 
@@ -257,7 +257,7 @@ func TestParseProfileValid(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "wgcf-profile.conf")
 
-	if err := os.WriteFile(path, []byte(sampleProfile), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(sampleProfile), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

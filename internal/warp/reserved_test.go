@@ -85,7 +85,7 @@ device_id = "abcdef01-1234-5678-abcd-ef0123456789"
 license_key = ""
 `
 		path := filepath.Join(dir, "valid.toml")
-		writeFile(t, path, content, 0600)
+		writeFile(t, path, content, 0o600)
 
 		fields, err := parseAccountFile(path)
 		if err != nil {
@@ -103,7 +103,7 @@ license_key = ""
 		content := `access_token = "token-with-quotes"` + "\n" +
 			`device_id = "dev-id-123"` + "\n"
 		path := filepath.Join(dir, "quoted.toml")
-		writeFile(t, path, content, 0600)
+		writeFile(t, path, content, 0o600)
 
 		fields, err := parseAccountFile(path)
 		if err != nil {
@@ -117,7 +117,7 @@ license_key = ""
 	t.Run("missing access_token", func(t *testing.T) {
 		content := `device_id = "abc123"` + "\n"
 		path := filepath.Join(dir, "no_token.toml")
-		writeFile(t, path, content, 0600)
+		writeFile(t, path, content, 0o600)
 
 		_, err := parseAccountFile(path)
 		if err == nil {
@@ -128,7 +128,7 @@ license_key = ""
 	t.Run("missing device_id", func(t *testing.T) {
 		content := `access_token = "token"` + "\n"
 		path := filepath.Join(dir, "no_device.toml")
-		writeFile(t, path, content, 0600)
+		writeFile(t, path, content, 0o600)
 
 		_, err := parseAccountFile(path)
 		if err == nil {
@@ -154,12 +154,12 @@ func TestCheckFilePermissions(t *testing.T) {
 		perm    os.FileMode
 		wantErr bool
 	}{
-		{"0600 accepted", 0600, false},
-		{"0400 accepted", 0400, false},
-		{"0644 rejected", 0644, true},
-		{"0660 rejected", 0660, true},
-		{"0640 rejected", 0640, true},
-		{"0777 rejected", 0777, true},
+		{"0o600 accepted", 0o600, false},
+		{"0o400 accepted", 0o400, false},
+		{"0o644 rejected", 0o644, true},
+		{"0o660 rejected", 0o660, true},
+		{"0o640 rejected", 0o640, true},
+		{"0o777 rejected", 0o777, true},
 	}
 
 	for _, tc := range cases {

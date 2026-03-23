@@ -22,10 +22,9 @@ import (
 // maxAccountFileSize caps reads of wgcf-account.toml to prevent OOM.
 const maxAccountFileSize = 64 * 1024 // 64 KB
 
-
 const (
-	warpAPIBase    = "https://api.cloudflareclient.com/v0a2158/reg"
-	apiTimeout     = 30 * time.Second
+	warpAPIBase     = "https://api.cloudflareclient.com/v0a2158/reg"
+	apiTimeout      = 30 * time.Second
 	maxResponseSize = 1 * 1024 * 1024 // 1 MB — API responses are small JSON objects
 )
 
@@ -117,7 +116,7 @@ func fetchDeviceInfo(accessToken, deviceID string) (*deviceResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
@@ -166,7 +165,7 @@ func parseAccountFile(path string) (*accountFields, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	data, err := io.ReadAll(io.LimitReader(f, maxAccountFileSize+1))
 	if err != nil {
@@ -208,15 +207,15 @@ func parseAccountFile(path string) (*accountFields, error) {
 }
 
 // checkFilePermissions rejects account files with permissions broader than
-// 0600 to prevent credential exposure via world-readable files.
+// 0o600 to prevent credential exposure via world-readable files.
 func checkFilePermissions(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("warp: stat %q: %w", path, err)
 	}
 	perm := info.Mode().Perm()
-	if perm != 0600 && perm != 0400 {
-		return fmt.Errorf("warp: account file %q has unsafe permissions %04o (want 0600 or 0400)", path, perm)
+	if perm != 0o600 && perm != 0o400 {
+		return fmt.Errorf("warp: account file %q has unsafe permissions %04o (want 0o600 or 0o400)", path, perm)
 	}
 	return nil
 }

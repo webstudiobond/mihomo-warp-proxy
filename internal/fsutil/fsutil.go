@@ -28,8 +28,8 @@ func createAtomicTemp(dst string, perm os.FileMode) (*os.File, string, error) {
 	}
 	tmpName := f.Name()
 	if err := f.Chmod(perm); err != nil {
-		_ = f.Close()
-		_ = os.Remove(tmpName)
+		defer func() { _ = f.Close() }()
+		defer func() { _ = os.Remove(tmpName) }()
 		return nil, "", fmt.Errorf("chmod temp file: %w", err)
 	}
 	return f, tmpName, nil
@@ -44,8 +44,8 @@ func AtomicWrite(filename string, data []byte, perm os.FileMode) error {
 	done := false
 	defer func() {
 		if !done {
-			_ = f.Close()
-			_ = os.Remove(tmpName)
+			defer func() { _ = f.Close() }()
+			defer func() { _ = os.Remove(tmpName) }()
 		}
 	}()
 

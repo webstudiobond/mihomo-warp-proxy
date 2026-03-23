@@ -188,7 +188,7 @@ func TestIsCached(t *testing.T) {
 	})
 
 	// Create the local file and cache metadata.
-	if err := os.WriteFile(dst, []byte("data"), 0600); err != nil {
+	if err := os.WriteFile(dst, []byte("data"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := writeCacheMeta(rawURL, headers, dir); err != nil {
@@ -243,17 +243,17 @@ func TestStreamToFileSizeLimit(t *testing.T) {
 			if written+n > limit {
 				n = limit - written
 			}
-			pw.Write(buf[:n])
+			_, _ = pw.Write(buf[:n])
 			written += n
 		}
-		pw.Close()
+		_ = pw.Close()
 	}()
 
 	// Replace resp.Body with the pipe reader to simulate a large download.
 	// We test the io.LimitReader enforcement directly.
 	limited := &limitedBody{r: pr, limit: maxFileSize + 1}
 	n, _ := countBytes(limited)
-	pr.Close()
+	_ = pr.Close()
 
 	if n <= int64(maxFileSize) {
 		t.Errorf("test data generator produced only %d bytes, need > %d", n, maxFileSize)
@@ -297,10 +297,10 @@ func TestApplyAuthCrossOriginProtection(t *testing.T) {
 	}
 
 	cases := []struct {
-		name      string
-		reqURL    string
-		origHost  string
-		wantAuth  bool
+		name     string
+		reqURL   string
+		origHost string
+		wantAuth bool
 	}{
 		{
 			name:     "same host — credentials applied",

@@ -57,7 +57,7 @@ func testConfig(dir string) *config.Config {
 func hasProxy(proxies []any, name string) bool {
 	for _, p := range proxies {
 		if m, ok := p.(map[string]any); ok {
-			if n, _ := m["name"].(string); n == name {
+			if n, ok := m["name"].(string); ok && n == name {
 				return true
 			}
 		}
@@ -115,7 +115,7 @@ func TestTemplateRulesWarp(t *testing.T) {
 	}
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
-	rules, _ := doc["rules"].([]any)
+	rules := doc["rules"].([]any)
 	if len(rules) != 1 || rules[0].(string) != "MATCH,warp" {
 		t.Errorf("template rules: got %v, want [MATCH,warp]", rules)
 	}
@@ -131,7 +131,7 @@ func TestTemplateRulesDirect(t *testing.T) {
 	}
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
-	rules, _ := doc["rules"].([]any)
+	rules := doc["rules"].([]any)
 	if len(rules) != 1 || rules[0].(string) != "MATCH,DIRECT" {
 		t.Errorf("template rules: got %v, want [MATCH,DIRECT]", rules)
 	}
@@ -149,8 +149,8 @@ func TestEnsureConfigFilePermissions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := info.Mode().Perm(); perm != 0600 {
-		t.Errorf("config file permissions: got %04o, want 0600", perm)
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("config file permissions: got %04o, want 0o600", perm)
 	}
 }
 
@@ -174,13 +174,13 @@ func TestPatchOverwritesOwnedFields(t *testing.T) {
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 
-	if doc["mixed-port"].(int) != 8080 {
+	if port, ok := doc["mixed-port"].(int); !ok || port != 8080 {
 		t.Errorf("mixed-port not updated: got %v", doc["mixed-port"])
 	}
-	if doc["log-level"].(string) != "debug" {
+	if level, ok := doc["log-level"].(string); !ok || level != "debug" {
 		t.Errorf("log-level not updated: got %v", doc["log-level"])
 	}
-	if doc["ipv6"].(bool) != false {
+	if ipv6, ok := doc["ipv6"].(bool); !ok || ipv6 != false {
 		t.Errorf("ipv6 not updated: got %v", doc["ipv6"])
 	}
 }
@@ -226,7 +226,7 @@ rules:
   - DOMAIN-SUFFIX,example.com,DIRECT
   - MATCH,MyGroup
 `
-	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0600); err != nil {
+	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -249,7 +249,7 @@ rules:
 	}
 
 	// All user rules must survive unchanged — patch never modifies rules[].
-	rules, _ := doc["rules"].([]any)
+	rules := doc["rules"].([]any)
 	if len(rules) != 2 {
 		t.Errorf("rules count changed: got %d, want 2", len(rules))
 	}
@@ -284,7 +284,7 @@ rules:
   - DOMAIN-SUFFIX,example.com,DIRECT
   - MATCH,my-vless
 `
-	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0600); err != nil {
+	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -295,7 +295,7 @@ rules:
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 
 	// Both proxies must be present.
-	proxies, _ := doc["proxies"].([]any)
+	proxies := doc["proxies"].([]any)
 	if len(proxies) != 2 {
 		t.Fatalf("expected 2 proxies, got %d", len(proxies))
 	}
@@ -309,7 +309,7 @@ rules:
 	}
 
 	// Rules must be untouched — user manages them.
-	rules, _ := doc["rules"].([]any)
+	rules := doc["rules"].([]any)
 	if len(rules) != 2 {
 		t.Fatalf("rules count changed: got %d, want 2", len(rules))
 	}
@@ -337,11 +337,11 @@ func TestPatchReplacesMatchDirectWhenMinimalTemplate(t *testing.T) {
 	}
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
-	rules, _ := doc["rules"].([]any)
+	rules := doc["rules"].([]any)
 	if len(rules) != 1 || rules[0].(string) != "MATCH,warp" {
 		t.Errorf("rules: got %v, want [MATCH,warp]", rules)
 	}
-	proxies, _ := doc["proxies"].([]any)
+	proxies := doc["proxies"].([]any)
 	if !hasProxy(proxies, "warp") {
 		t.Error("warp proxy not added")
 	}
@@ -364,7 +364,7 @@ rules:
   - DOMAIN-SUFFIX,example.com,DIRECT
   - MATCH,DIRECT
 `
-	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0600); err != nil {
+	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -373,7 +373,7 @@ rules:
 	}
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
-	rules, _ := doc["rules"].([]any)
+	rules := doc["rules"].([]any)
 	// 2 rules — not a minimal template, so rules must be untouched.
 	if len(rules) != 2 {
 		t.Fatalf("rules count changed: got %d, want 2", len(rules))
@@ -401,8 +401,8 @@ func TestPatchDoesNotModifyRules(t *testing.T) {
 		"GEOIP,CN,DIRECT",
 		"MATCH,MyGroup",
 	}
-	data, _ := yaml.Marshal(doc)
-	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, data, 0600); err != nil {
+	data, _ := yaml.Marshal(doc) //nolint:errcheck
+	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -412,7 +412,7 @@ func TestPatchDoesNotModifyRules(t *testing.T) {
 	}
 
 	doc = readYAML(t, cfg.Paths.MihomoConfigFile)
-	rules, _ := doc["rules"].([]any)
+	rules := doc["rules"].([]any)
 
 	if len(rules) != 3 {
 		t.Fatalf("rules count changed: got %d, want 3", len(rules))
@@ -439,8 +439,8 @@ func TestReservedWrittenWhenNonZero(t *testing.T) {
 	}
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
-	proxies, _ := doc["proxies"].([]any)
-	proxy := proxies[0].(map[string]any)
+	proxies := doc["proxies"].([]any)
+	proxy, _ := proxies[0].(map[string]any)
 
 	if proxy["reserved"] == nil {
 		t.Error("reserved not written when non-zero")
@@ -456,8 +456,8 @@ func TestReservedNotWrittenWhenZero(t *testing.T) {
 	}
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
-	proxies, _ := doc["proxies"].([]any)
-	proxy := proxies[0].(map[string]any)
+	proxies := doc["proxies"].([]any)
+	proxy, _ := proxies[0].(map[string]any)
 
 	if proxy["reserved"] != nil {
 		t.Errorf("reserved written for zero value: %v", proxy["reserved"])
@@ -505,8 +505,8 @@ func TestAmneziaBlockAddedAndRemoved(t *testing.T) {
 	}
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
-	proxies, _ := doc["proxies"].([]any)
-	proxy := proxies[0].(map[string]any)
+	proxies := doc["proxies"].([]any)
+	proxy, _ := proxies[0].(map[string]any)
 
 	if proxy["amnezia-wg-option"] == nil {
 		t.Error("amnezia-wg-option not written when Amnezia enabled")
@@ -518,8 +518,8 @@ func TestAmneziaBlockAddedAndRemoved(t *testing.T) {
 	}
 
 	doc = readYAML(t, cfg.Paths.MihomoConfigFile)
-	proxies, _ = doc["proxies"].([]any)
-	proxy = proxies[0].(map[string]any)
+	proxies = doc["proxies"].([]any)
+	proxy, _ = proxies[0].(map[string]any)
 
 	if proxy["amnezia-wg-option"] != nil {
 		t.Error("amnezia-wg-option still present after Amnezia disabled")

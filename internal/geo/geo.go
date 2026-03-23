@@ -27,11 +27,11 @@ import (
 )
 
 const (
-	maxFileSize        = 100 * 1024 * 1024 // 100 MB hard ceiling per geo file
-	maxRedirects       = 5
-	downloadTimeout    = 5 * time.Minute
-	headTimeout        = 30 * time.Second
-	maxMetaSize        = 4 * 1024 // metadata cache files are small
+	maxFileSize     = 100 * 1024 * 1024 // 100 MB hard ceiling per geo file
+	maxRedirects    = 5
+	downloadTimeout = 5 * time.Minute
+	headTimeout     = 30 * time.Second
+	maxMetaSize     = 4 * 1024 // metadata cache files are small
 )
 
 // PrepareGeoFiles downloads all four geo files in parallel.
@@ -94,7 +94,7 @@ func download(client *http.Client, cfg *config.Config, log *logging.Logger, rawU
 		return fmt.Errorf("geo: download %q: %w", rawURL, err)
 	}
 
-	if err := os.Chmod(dst, 0600); err != nil {
+	if err := os.Chmod(dst, 0o600); err != nil {
 		return fmt.Errorf("geo: chmod %q: %w", dst, err)
 	}
 
@@ -130,7 +130,7 @@ func fetchMeta(client *http.Client, cfg *config.Config, rawURL, origHost string)
 		if err != nil {
 			return nil, "", err
 		}
-		_ = resp.Body.Close() // HEAD response body is empty; close error is non-actionable
+		defer func() { _ = resp.Body.Close() }() // HEAD response body is empty; close error is non-actionable
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return resp.Header, current, nil
@@ -172,7 +172,7 @@ func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
@@ -192,11 +192,11 @@ func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst
 	}
 	tmpName := tmp.Name()
 	defer func() {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
+		defer func() { _ = tmp.Close() }()
+		defer func() { _ = os.Remove(tmpName) }()
 	}()
 
-	if err := tmp.Chmod(0600); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		return fmt.Errorf("chmod temp file: %w", err)
 	}
 
@@ -232,7 +232,7 @@ func metaKey(rawURL string) string {
 // cacheDir returns (and creates) the metadata cache directory.
 func cacheDir(mihomoData string) (string, error) {
 	dir := filepath.Join(mihomoData, ".cache")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -278,8 +278,8 @@ func writeCacheMeta(rawURL string, remoteHeaders http.Header, mihomoData string)
 	}
 	tmpName := tmp.Name()
 	defer func() {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
+		defer func() { _ = tmp.Close() }()
+		defer func() { _ = os.Remove(tmpName) }()
 	}()
 
 	if _, err := tmp.WriteString(data); err != nil {
@@ -390,9 +390,9 @@ func newHTTPClient() *http.Client {
 			return http.ErrUseLastResponse
 		},
 		Transport: &http.Transport{
-			ForceAttemptHTTP2:   false,
-			DisableKeepAlives:   true,
-			DialContext:         dialer.DialContext,
+			ForceAttemptHTTP2: false,
+			DisableKeepAlives: true,
+			DialContext:       dialer.DialContext,
 		},
 	}
 }
