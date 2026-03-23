@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
 )
 
 // maxBackupSize mirrors the config file size limit in mihomo/config.go.
@@ -40,12 +42,12 @@ func ConfigFile(src string) error {
 		return fmt.Errorf("backup: parent directory %q is not writable", dir)
 	}
 
-	return atomicCopy(src, src+".back", dir)
+	return atomicCopy(src, src+".back")
 }
 
 // atomicCopy copies src to dst via a temporary file in tmpDir, then renames
 // the temporary file to dst. This ensures dst is never partially written.
-func atomicCopy(src, dst, tmpDir string) error {
+func atomicCopy(src, dst string) error {
 	// #nosec G304 -- File inclusion is intended here. src is either the fixed
 	// mihomo config path or its direct symlink target, protected by validate.Path.
 	in, err := os.Open(src)
@@ -70,46 +72,16 @@ func atomicCopy(src, dst, tmpDir string) error {
 		return nil
 	}
 
-	tmp, err := os.CreateTemp(tmpDir, ".config_backup_*.tmp")
-	if err != nil {
-		return fmt.Errorf("backup: create temp file in %q: %w", tmpDir, err)
-	}
-	tmpName := tmp.Name()
-
-	// Unconditional cleanup: remove the temp file on any failure path.
-	// On success the file has already been renamed, so Remove is a no-op.
-	defer func() {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
-	}()
-
-	if err := tmp.Chmod(0600); err != nil {
-		return fmt.Errorf("backup: chmod temp file: %w", err)
-	}
-
 	limited := io.LimitReader(in, maxBackupSize+1)
-	n, err := io.Copy(tmp, limited)
+	buf, err := io.ReadAll(limited)
 	if err != nil {
 		return fmt.Errorf("backup: copy content to temp file: %w", err)
 	}
-	if n > maxBackupSize {
+	if int64(len(buf)) > maxBackupSize {
 		return fmt.Errorf("backup: source file %q exceeds 1MB limit", src)
 	}
 
-	if err := tmp.Sync(); err != nil {
-		return fmt.Errorf("backup: sync temp file: %w", err)
-	}
-
-	// Close before rename — required on some POSIX implementations.
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("backup: close temp file: %w", err)
-	}
-
-	if err := os.Rename(tmpName, dst); err != nil {
-		return fmt.Errorf("backup: rename %q -> %q: %w", tmpName, dst, err)
-	}
-
-	return nil
+	return fsutil.AtomicWrite(dst, buf, 0600)
 }
 
 // isDirWritable probes write access to dir by attempting to create and

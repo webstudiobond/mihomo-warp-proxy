@@ -31,9 +31,9 @@ import (
 	"io"
 	"strconv"
 	"os"
-	"path/filepath"
 	"net"
 
+	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
 	"gopkg.in/yaml.v3"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
@@ -488,7 +488,7 @@ func writeConfigNode(path string, root *yaml.Node) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	return atomicWrite(path, data)
+	return fsutil.AtomicWrite(path, data, 0600)
 }
 
 // writeConfigMap marshals a map[string]any and atomically writes it to path.
@@ -498,33 +498,5 @@ func writeConfigMap(path string, doc map[string]any) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	return atomicWrite(path, data)
-}
-
-// atomicWrite writes data to path via a temp file rename.
-func atomicWrite(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".config_write_*.tmp")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-	tmpName := tmp.Name()
-	defer func() {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
-	}()
-
-	if err := tmp.Chmod(0600); err != nil {
-		return fmt.Errorf("chmod temp file: %w", err)
-	}
-	if _, err := tmp.Write(data); err != nil {
-		return fmt.Errorf("write temp file: %w", err)
-	}
-	if err := tmp.Sync(); err != nil {
-		return fmt.Errorf("sync temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close temp file: %w", err)
-	}
-	return os.Rename(tmpName, path)
+	return fsutil.AtomicWrite(path, data, 0600)
 }
