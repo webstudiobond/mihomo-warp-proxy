@@ -51,8 +51,11 @@ func (h *logHandler) Handle(_ context.Context, r slog.Record) error {
 	ts := r.Time.UTC().Format("2006-01-02T15:04:05Z")
 	levelStr := levelName(r.Level)
 
+	msg := strings.ReplaceAll(r.Message, "\r", "")
+	msg = strings.ReplaceAll(msg, "\n", " | ")
+
 	line := fmt.Sprintf("%s [%s] [%d] %s (v%s)\n",
-		ts, levelStr, h.pid, r.Message, h.version)
+		ts, levelStr, h.pid, msg, h.version)
 
 	_, err := os.Stderr.WriteString(line)
 	return err
