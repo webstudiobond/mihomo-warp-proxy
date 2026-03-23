@@ -7,6 +7,7 @@
 package wgcf
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
@@ -117,7 +119,7 @@ func ParseProfile(cfg *config.Config) (*Profile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("wgcf: read profile %q: %w", path, err)
 	}
-	defer func() { _ = f.Close() }() //nolint:errcheck
+	defer func() { _ = f.Close() }() //nolint:errcheck // read-only file
 
 	data, err := io.ReadAll(io.LimitReader(f, maxWgcfFileSize+1))
 	if err != nil {
@@ -159,7 +161,9 @@ func generate(cfg *config.Config, log *logging.Logger) error {
 // cwd. Arguments are passed as a slice — never interpolated into a shell
 // string — to prevent injection via cfg.Warp.PlusKey.
 func runWgcf(cfg *config.Config, log *logging.Logger, args ...string) error {
-	cmd := exec.Command(cfg.Paths.WgcfBin, args...) // #nosec G204 -- args are validated; no untrusted input reaches this call
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, cfg.Paths.WgcfBin, args...) // #nosec G204 -- args are validated; no untrusted input reaches this call
 	cmd.Dir = cfg.Paths.WgcfData
 
 	out, err := cmd.CombinedOutput()
@@ -201,7 +205,7 @@ func secureFiles(cfg *config.Config) error {
 			return fmt.Errorf("wgcf: open %q: %w", path, err)
 		}
 		chmodErr := f.Chmod(0o600)
-		defer func() { _ = f.Close() }() //nolint:errcheck
+		_ = f.Close() //nolint:errcheck // close immediately in loop
 		if chmodErr != nil {
 			return fmt.Errorf("wgcf: chmod %q: %w", path, chmodErr)
 		}

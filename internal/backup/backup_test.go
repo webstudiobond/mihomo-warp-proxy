@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,12 +47,12 @@ func TestConfigFileCreatesBackup(t *testing.T) {
 	}
 
 	back := src + ".back"
-	got, err := os.ReadFile(back)
+	got, err := os.ReadFile(back) // #nosec G304
 	if err != nil {
 		t.Fatalf("backup file not created: %v", err)
 	}
 
-	if string(got) != string(content) {
+	if !bytes.Equal(got, content) {
 		t.Errorf("backup content mismatch: got %q, want %q", got, content)
 	}
 }
@@ -99,27 +100,27 @@ func TestConfigFileOverwritesExistingBackup(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	got, err := os.ReadFile(back)
+	got, err := os.ReadFile(back) // #nosec G304
 	if err != nil {
 		t.Fatalf("backup file not found: %v", err)
 	}
 
-	if string(got) != string(newContent) {
+	if !bytes.Equal(got, newContent) {
 		t.Errorf("backup not updated: got %q, want %q", got, newContent)
 	}
 }
 
 func TestConfigFileSymlink(t *testing.T) {
 	dir := t.TempDir()
-	real := filepath.Join(dir, "real_config.yaml")
+	realFile := filepath.Join(dir, "real_config.yaml")
 	link := filepath.Join(dir, "config.yaml")
 	content := []byte("real content via symlink")
 
-	if err := os.WriteFile(real, content, 0o600); err != nil {
+	if err := os.WriteFile(realFile, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Symlink(real, link); err != nil {
+	if err := os.Symlink(realFile, link); err != nil {
 		t.Fatal(err)
 	}
 
@@ -130,13 +131,13 @@ func TestConfigFileSymlink(t *testing.T) {
 	}
 
 	// Backup is created next to the resolved real file.
-	back := real + ".back"
-	got, err := os.ReadFile(back)
+	back := realFile + ".back"
+	got, err := os.ReadFile(back) // #nosec G304
 	if err != nil {
 		t.Fatalf("backup file not created: %v", err)
 	}
 
-	if string(got) != string(content) {
+	if !bytes.Equal(got, content) {
 		t.Errorf("symlink backup content mismatch: got %q, want %q", got, content)
 	}
 

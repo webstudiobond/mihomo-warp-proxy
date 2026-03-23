@@ -8,6 +8,9 @@
 *.out
 *.test
 
+# Backup
+*.bak
+
 # Go workspace
 go.work
 go.work.sum

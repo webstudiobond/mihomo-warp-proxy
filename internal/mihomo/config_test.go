@@ -1,3 +1,4 @@
+//nolint:errcheck // Type assertions in tests safely panic on failure
 package mihomo
 
 import (
@@ -10,6 +11,11 @@ import (
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/wgcf"
+)
+
+const (
+	ruleMatchWarp   = "MATCH,warp"
+	ruleMatchDirect = "MATCH,DIRECT"
 )
 
 var (
@@ -68,7 +74,7 @@ func hasProxy(proxies []any, name string) bool {
 // readYAML parses a YAML file into map[string]any for assertions.
 func readYAML(t *testing.T, path string) map[string]any {
 	t.Helper()
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304
 	if err != nil {
 		t.Fatalf("readYAML: %v", err)
 	}
@@ -116,8 +122,8 @@ func TestTemplateRulesWarp(t *testing.T) {
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 	rules := doc["rules"].([]any)
-	if len(rules) != 1 || rules[0].(string) != "MATCH,warp" {
-		t.Errorf("template rules: got %v, want [MATCH,warp]", rules)
+	if len(rules) != 1 || rules[0].(string) != ruleMatchWarp {
+		t.Errorf("template rules: got %v, want [%s]", rules, ruleMatchWarp)
 	}
 }
 
@@ -132,8 +138,8 @@ func TestTemplateRulesDirect(t *testing.T) {
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 	rules := doc["rules"].([]any)
-	if len(rules) != 1 || rules[0].(string) != "MATCH,DIRECT" {
-		t.Errorf("template rules: got %v, want [MATCH,DIRECT]", rules)
+	if len(rules) != 1 || rules[0].(string) != ruleMatchDirect {
+		t.Errorf("template rules: got %v, want [%s]", rules, ruleMatchDirect)
 	}
 }
 
@@ -338,8 +344,8 @@ func TestPatchReplacesMatchDirectWhenMinimalTemplate(t *testing.T) {
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 	rules := doc["rules"].([]any)
-	if len(rules) != 1 || rules[0].(string) != "MATCH,warp" {
-		t.Errorf("rules: got %v, want [MATCH,warp]", rules)
+	if len(rules) != 1 || rules[0].(string) != ruleMatchWarp {
+		t.Errorf("rules: got %v, want [%s]", rules, ruleMatchWarp)
 	}
 	proxies := doc["proxies"].([]any)
 	if !hasProxy(proxies, "warp") {
@@ -378,7 +384,7 @@ rules:
 	if len(rules) != 2 {
 		t.Fatalf("rules count changed: got %d, want 2", len(rules))
 	}
-	if rules[1].(string) != "MATCH,DIRECT" {
+	if rules[1].(string) != ruleMatchDirect {
 		t.Errorf("rules[1] changed: got %q", rules[1])
 	}
 }
@@ -401,7 +407,7 @@ func TestPatchDoesNotModifyRules(t *testing.T) {
 		"GEOIP,CN,DIRECT",
 		"MATCH,MyGroup",
 	}
-	data, _ := yaml.Marshal(doc) //nolint:errcheck
+	data, _ := yaml.Marshal(doc) //nolint:errcheck // mock serialization
 	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +560,7 @@ func TestSplitEndpoint(t *testing.T) {
 // --- findProxyByNameNode ---
 
 func TestFindProxyByNameNode(t *testing.T) {
-	make := func(name string) *yaml.Node {
+	makeNode := func(name string) *yaml.Node {
 		return &yaml.Node{
 			Kind: yaml.MappingNode,
 			Tag:  "!!map",
@@ -567,7 +573,7 @@ func TestFindProxyByNameNode(t *testing.T) {
 	seq := &yaml.Node{
 		Kind:    yaml.SequenceNode,
 		Tag:     "!!seq",
-		Content: []*yaml.Node{make("direct"), make("warp"), make("vless")},
+		Content: []*yaml.Node{makeNode("direct"), makeNode("warp"), makeNode("vless")},
 	}
 
 	if idx := findProxyByNameNode(seq, "warp"); idx != 1 {

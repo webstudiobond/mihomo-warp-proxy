@@ -48,7 +48,7 @@ func TestVersionFromFile(t *testing.T) {
 
 	t.Run("valid version", func(t *testing.T) {
 		path := filepath.Join(dir, "version")
-		if err := os.WriteFile(path, []byte("1.2.3\n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("1.2.3\n"), 0o644); err != nil { // #nosec G306
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
@@ -59,42 +59,42 @@ func TestVersionFromFile(t *testing.T) {
 
 	t.Run("missing file returns unknown", func(t *testing.T) {
 		got := VersionFromFile(filepath.Join(dir, "nonexistent"))
-		if got != "unknown" {
-			t.Errorf("got %q, want %q", got, "unknown")
+		if got != versionUnknown {
+			t.Errorf("got %q, want %q", got, versionUnknown)
 		}
 	})
 
 	t.Run("empty file returns unknown", func(t *testing.T) {
 		path := filepath.Join(dir, "empty")
-		if err := os.WriteFile(path, []byte("   \n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("   \n"), 0o644); err != nil { // #nosec G306
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
-		if got != "unknown" {
-			t.Errorf("got %q, want %q", got, "unknown")
+		if got != versionUnknown {
+			t.Errorf("got %q, want %q", got, versionUnknown)
 		}
 	})
 
 	t.Run("oversized version returns unknown", func(t *testing.T) {
 		path := filepath.Join(dir, "toolong")
-		if err := os.WriteFile(path, []byte(strings.Repeat("a", 33)), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(strings.Repeat("a", 33)), 0o644); err != nil { // #nosec G306
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
-		if got != "unknown" {
-			t.Errorf("got %q, want %q", got, "unknown")
+		if got != versionUnknown {
+			t.Errorf("got %q, want %q", got, versionUnknown)
 		}
 	})
 
 	t.Run("control characters return unknown", func(t *testing.T) {
 		path := filepath.Join(dir, "ctrlchars")
 		// Embed a newline inside the version string — potential log injection.
-		if err := os.WriteFile(path, []byte("1.0\x00evil"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("1.0\x00evil"), 0o644); err != nil { // #nosec G306
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
-		if got != "unknown" {
-			t.Errorf("got %q, want %q", got, "unknown")
+		if got != versionUnknown {
+			t.Errorf("got %q, want %q", got, versionUnknown)
 		}
 	})
 }
@@ -114,11 +114,11 @@ func TestLoggerLevelFiltering(t *testing.T) {
 	logger.Info("this should not appear either")
 	logger.Warn("this should appear")
 
-	_ = w.Close()
+	_ = w.Close() //nolint:errcheck // mock close
 	os.Stderr = origStderr
 
 	buf := make([]byte, 4096)
-	n, _ := r.Read(buf) // #nosec errcheck
+	n, _ := r.Read(buf) //nolint:errcheck // mock read
 	output := string(buf[:n])
 
 	if strings.Contains(output, "this should not appear") {
@@ -140,11 +140,11 @@ func TestLogOutputFormat(t *testing.T) {
 	logger := New(LevelDebug, "9.9.9")
 	logger.Info("hello world")
 
-	_ = w.Close()
+	_ = w.Close() //nolint:errcheck // mock close
 	os.Stderr = origStderr
 
 	buf := make([]byte, 4096)
-	n, _ := r.Read(buf) // #nosec errcheck
+	n, _ := r.Read(buf) //nolint:errcheck // mock read
 	line := string(buf[:n])
 
 	// Verify all mandatory format components are present.

@@ -6,6 +6,7 @@
 package warp
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -101,7 +102,9 @@ func fetchDeviceInfo(accessToken, deviceID string) (*deviceResponse, error) {
 	// interpolation is safe.
 	apiURL := fmt.Sprintf("%s/%s", warpAPIBase, deviceID)
 
-	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +114,12 @@ func fetchDeviceInfo(accessToken, deviceID string) (*deviceResponse, error) {
 	req.Header.Set("User-Agent", "okhttp/3.12.1")
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: apiTimeout}
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // read-only body
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
@@ -165,7 +168,7 @@ func parseAccountFile(path string) (*accountFields, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = f.Close() }()
+	defer func() { _ = f.Close() }() //nolint:errcheck // read-only file
 
 	data, err := io.ReadAll(io.LimitReader(f, maxAccountFileSize+1))
 	if err != nil {

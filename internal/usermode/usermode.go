@@ -252,8 +252,8 @@ func isDirWritable(dir string) bool {
 	if err != nil {
 		return false
 	}
-	_ = f.Close()
-	_ = os.Remove(f.Name())
+	_ = f.Close()           //nolint:errcheck // probe cleanup
+	_ = os.Remove(f.Name()) //nolint:errcheck // probe cleanup
 	return true
 }
 

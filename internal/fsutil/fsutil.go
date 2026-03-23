@@ -1,3 +1,5 @@
+// Package fsutil provides atomic filesystem operations to ensure file
+// integrity during writes and updates.
 package fsutil
 
 import (
@@ -28,8 +30,8 @@ func createAtomicTemp(dst string, perm os.FileMode) (*os.File, string, error) {
 	}
 	tmpName := f.Name()
 	if err := f.Chmod(perm); err != nil {
-		defer func() { _ = f.Close() }()
-		defer func() { _ = os.Remove(tmpName) }()
+		_ = f.Close()          //nolint:errcheck // cleanup on error
+		_ = os.Remove(tmpName) //nolint:errcheck // cleanup on error
 		return nil, "", fmt.Errorf("chmod temp file: %w", err)
 	}
 	return f, tmpName, nil
@@ -44,8 +46,8 @@ func AtomicWrite(filename string, data []byte, perm os.FileMode) error {
 	done := false
 	defer func() {
 		if !done {
-			defer func() { _ = f.Close() }()
-			defer func() { _ = os.Remove(tmpName) }()
+			_ = f.Close()          //nolint:errcheck // cleanup on failure
+			_ = os.Remove(tmpName) //nolint:errcheck // cleanup on failure
 		}
 	}()
 

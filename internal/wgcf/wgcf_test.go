@@ -242,7 +242,7 @@ func TestParseProfileUnsafePermissions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "wgcf-profile.conf")
 
-	if err := os.WriteFile(path, []byte(sampleProfile), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(sampleProfile), 0o644); err != nil { // #nosec G306
 		t.Fatal(err)
 	}
 

@@ -62,7 +62,7 @@ func atomicCopy(src, dst string) error {
 		}
 		return fmt.Errorf("backup: open source %q: %w", src, err)
 	}
-	defer func() { _ = in.Close() }()
+	defer func() { _ = in.Close() }() //nolint:errcheck // read-only file, close error is unactionable
 
 	info, err := in.Stat()
 	if err != nil {
@@ -98,7 +98,7 @@ func isDirWritable(dir string) bool {
 	if err != nil {
 		return false
 	}
-	defer func() { _ = f.Close() }()
-	defer func() { _ = os.Remove(f.Name()) }()
+	_ = f.Close()           //nolint:errcheck // probe cleanup
+	_ = os.Remove(f.Name()) //nolint:errcheck // probe cleanup
 	return true
 }

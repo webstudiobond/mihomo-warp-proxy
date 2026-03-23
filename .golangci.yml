@@ -1,15 +1,14 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
   tests: true
 
 linters:
-  # В v2 'disable-all: true' заменено на 'default: none'
   default: none
   enable:
     - errcheck
-    - staticcheck # Включает в себя gosimple и stylecheck
+    - staticcheck
     - ineffassign
     - gosec
     - bodyclose
@@ -27,7 +26,6 @@ linters:
     - errname
     - copyloopvar
 
-  # Настройки линтеров теперь внутри linters.settings
   settings:
     errcheck:
       check-type-assertions: true
@@ -41,13 +39,14 @@ linters:
         - performance
         - style
 
-# Форматировщики вынесены в отдельную секцию
+  exclusions:
+    presets: []
+
 formatters:
   enable:
     - gofmt
     - goimports
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0

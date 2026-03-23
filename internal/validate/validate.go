@@ -4,10 +4,12 @@
 package validate
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Path validates that p is safe to use as a filesystem path in this container.
@@ -111,7 +113,9 @@ func IsRestrictedIP(ip net.IP) bool {
 // An empty result set (NXDOMAIN or no A/AAAA records) is treated as an error
 // because proceeding with an unresolvable host would silently skip the check.
 func ResolveAndValidate(hostname string) error {
-	addrs, err := net.LookupHost(hostname)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	addrs, err := net.DefaultResolver.LookupHost(ctx, hostname)
 	if err != nil {
 		return fmt.Errorf("DNS resolution failed for %q: %w", hostname, err)
 	}
@@ -172,19 +176,17 @@ func AmneziaIParam(name, val string) error {
 			rest = rest[len("<t>"):]
 
 		case strings.HasPrefix(rest, "<r "):
-			n, tail, err := parseTagNumeric(rest, "<r ", 0, 1000)
+			tail, err := parseTagNumeric(rest, "<r ", 0, 1000)
 			if err != nil {
 				return fmt.Errorf("%s: <r> tag: %w", name, err)
 			}
-			_ = n
 			rest = tail
 
 		case strings.HasPrefix(rest, "<wt "):
-			n, tail, err := parseTagNumeric(rest, "<wt ", 0, 5000)
+			tail, err := parseTagNumeric(rest, "<wt ", 0, 5000)
 			if err != nil {
 				return fmt.Errorf("%s: <wt> tag: %w", name, err)
 			}
-			_ = n
 			rest = tail
 
 		default:
@@ -194,24 +196,24 @@ func AmneziaIParam(name, val string) error {
 	return nil
 }
 
-// parseTagNumeric parses a tag of the form "<prefix N>" and returns the
-// numeric value and the remaining string after the closing ">".
-func parseTagNumeric(s, prefix string, min, max int) (int, string, error) {
+// parseTagNumeric parses a tag of the form "<prefix N>". It validates the
+// numeric value and returns the remaining string after the closing ">".
+func parseTagNumeric(s, prefix string, minVal, maxVal int) (tail string, err error) {
 	inner := s[len(prefix):]
 	end := strings.Index(inner, ">")
 	if end < 0 {
-		return 0, "", fmt.Errorf("unclosed tag %q in %q", prefix, truncate(s))
+		return "", fmt.Errorf("unclosed tag %q in %q", prefix, truncate(s))
 	}
 	numStr := inner[:end]
-	n, err := parseTagInt(numStr, min, max)
+	_, err = parseTagInt(numStr, minVal, maxVal)
 	if err != nil {
-		return 0, "", err
+		return "", err
 	}
-	return n, inner[end+1:], nil
+	return inner[end+1:], nil
 }
 
 // parseTagInt converts a tag numeric argument string to int within [min, max].
-func parseTagInt(s string, min, max int) (int, error) {
+func parseTagInt(s string, minVal, maxVal int) (int, error) {
 	if s == "" {
 		return 0, fmt.Errorf("missing numeric argument")
 	}
@@ -222,8 +224,8 @@ func parseTagInt(s string, min, max int) (int, error) {
 		}
 		n = n*10 + int(r-'0')
 	}
-	if n < min || n > max {
-		return 0, fmt.Errorf("value %d out of range [%d, %d]", n, min, max)
+	if n < minVal || n > maxVal {
+		return 0, fmt.Errorf("value %d out of range [%d, %d]", n, minVal, maxVal)
 	}
 	return n, nil
 }
@@ -234,7 +236,7 @@ func validateHex(s string) error {
 		return fmt.Errorf("empty hex value")
 	}
 	for i, r := range s {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
 			return fmt.Errorf("invalid hex character %q at position %d", r, i)
 		}
 	}

@@ -14,6 +14,7 @@ import (
 // SCRIPT_LOG_LEVEL contract (DEBUG, INFO, WARN, ERROR).
 type Level = slog.Level
 
+// Log level aliases mapping SCRIPT_LOG_LEVEL strings to slog levels.
 const (
 	LevelDebug = slog.LevelDebug
 	LevelInfo  = slog.LevelInfo
@@ -47,7 +48,7 @@ func (h *logHandler) Enabled(_ context.Context, l slog.Level) bool {
 	return l >= h.level
 }
 
-func (h *logHandler) Handle(_ context.Context, r slog.Record) error {
+func (h *logHandler) Handle(_ context.Context, r slog.Record) error { //nolint:gocritic // signature required by slog.Handler interface
 	ts := r.Time.UTC().Format("2006-01-02T15:04:05Z")
 	levelStr := levelName(r.Level)
 
@@ -67,19 +68,22 @@ func (h *logHandler) Handle(_ context.Context, r slog.Record) error {
 func (h *logHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
 func (h *logHandler) WithGroup(_ string) slog.Handler      { return h }
 
+const infoName = "INFO"
+const versionUnknown = "unknown"
+
 // levelName returns the uppercase level string used in log output.
 func levelName(l slog.Level) string {
 	switch l {
 	case slog.LevelDebug:
 		return "DEBUG"
 	case slog.LevelInfo:
-		return "INFO"
+		return infoName
 	case slog.LevelWarn:
 		return "WARN"
 	case slog.LevelError:
 		return "ERROR"
 	default:
-		return "INFO"
+		return infoName
 	}
 }
 
@@ -122,7 +126,7 @@ func (l *Logger) log(level slog.Level, msg string) {
 		return
 	}
 	r := slog.NewRecord(time.Now(), level, msg, 0)
-	_ = l.handler.Handle(context.Background(), r)
+	_ = l.handler.Handle(context.Background(), r) //nolint:errcheck // log writes are fire-and-forget
 }
 
 // Debug logs at DEBUG level. Use for verbose diagnostic output that is
@@ -174,26 +178,26 @@ func (l *Logger) Fatalf(format string, args ...any) {
 // Level returns the minimum level at which this logger emits output.
 func (l *Logger) Level() slog.Level { return l.level }
 
-// versionFromFile reads the single-line version string from /app/version.
+// VersionFromFile reads the single-line version string from /app/version.
 // Returns "unknown" on any read or parse failure — a missing version file
 // must not prevent the entrypoint from starting.
 func VersionFromFile(path string) string {
 	// #nosec G304 -- The path is a fixed constant (cfg.Paths.VersionFile).
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "unknown"
+		return versionUnknown
 	}
 	v := strings.TrimSpace(string(data))
 	if v == "" {
-		return "unknown"
+		return versionUnknown
 	}
 	// Reject implausible version strings to avoid log-injection via the file.
 	if len(v) > 32 {
-		return "unknown"
+		return versionUnknown
 	}
 	for _, r := range v {
 		if r < 0x20 || r > 0x7e {
-			return "unknown"
+			return versionUnknown
 		}
 	}
 	return v

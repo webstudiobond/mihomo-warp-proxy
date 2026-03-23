@@ -96,7 +96,7 @@ func patchConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, lo
 	if err != nil {
 		return fmt.Errorf("open config: %w", err)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() { _ = f.Close() }() //nolint:errcheck // read-only file
 
 	raw, err := io.ReadAll(io.LimitReader(f, maxConfigSize+1))
 	if err != nil {
@@ -127,9 +127,7 @@ func patchConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, lo
 	}
 
 	if cfg.Warp.Enabled && profile != nil {
-		if err := patchWarpProxy(doc, cfg, profile, reserved, log); err != nil {
-			return err
-		}
+		patchWarpProxy(doc, cfg, profile, reserved, log)
 	}
 	// When USE_WARP_CONFIG=false proxies and rules are left completely untouched.
 
@@ -190,7 +188,7 @@ func removeGeoFieldsNode(doc *yaml.Node) {
 
 // patchWarpProxy finds or appends the warp proxy in the document's proxies
 // sequence. All other proxies and all rules are left untouched.
-func patchWarpProxy(doc *yaml.Node, cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, log *logging.Logger) error {
+func patchWarpProxy(doc *yaml.Node, cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, log *logging.Logger) {
 	warpNode := buildWarpProxy(cfg, profile, reserved)
 
 	proxiesNode := getMappingValue(doc, "proxies")
@@ -215,12 +213,11 @@ func patchWarpProxy(doc *yaml.Node, cfg *config.Config, profile *wgcf.Profile, r
 		}
 
 		proxiesNode.Content = append(proxiesNode.Content, warpNode)
-		return nil
+		return
 	}
 
 	// Replace the existing warp entry in-place — consistent key order.
 	proxiesNode.Content[idx] = warpNode
-	return nil
 }
 
 // isMinimalTemplateNode returns true when the document has no proxies and
@@ -344,9 +341,10 @@ func docMapping(root *yaml.Node) *yaml.Node {
 // getMappingValue returns the value node for the given key, or nil.
 func getMappingValue(doc *yaml.Node, key string) *yaml.Node {
 	for i := 0; i+1 < len(doc.Content); i += 2 {
-		if doc.Content[i].Value == key {
-			return doc.Content[i+1]
+		if doc.Content[i].Value != key {
+			continue
 		}
+		return doc.Content[i+1]
 	}
 	return nil
 }
@@ -355,13 +353,14 @@ func getMappingValue(doc *yaml.Node, key string) *yaml.Node {
 // appending if the key does not exist.
 func setNodeScalar(doc *yaml.Node, key, tag, value string) {
 	for i := 0; i+1 < len(doc.Content); i += 2 {
-		if doc.Content[i].Value == key {
-			doc.Content[i+1].Kind = yaml.ScalarNode
-			doc.Content[i+1].Tag = tag
-			doc.Content[i+1].Value = value
-			doc.Content[i+1].Content = nil
-			return
+		if doc.Content[i].Value != key {
+			continue
 		}
+		doc.Content[i+1].Kind = yaml.ScalarNode
+		doc.Content[i+1].Tag = tag
+		doc.Content[i+1].Value = value
+		doc.Content[i+1].Content = nil
+		return
 	}
 	doc.Content = append(doc.Content,
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
@@ -372,10 +371,11 @@ func setNodeScalar(doc *yaml.Node, key, tag, value string) {
 // setNodeValue sets key=node in the mapping, updating in place or appending.
 func setNodeValue(doc *yaml.Node, key string, val *yaml.Node) {
 	for i := 0; i+1 < len(doc.Content); i += 2 {
-		if doc.Content[i].Value == key {
-			doc.Content[i+1] = val
-			return
+		if doc.Content[i].Value != key {
+			continue
 		}
+		doc.Content[i+1] = val
+		return
 	}
 	doc.Content = append(doc.Content,
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
@@ -386,10 +386,11 @@ func setNodeValue(doc *yaml.Node, key string, val *yaml.Node) {
 // deleteNodeKey removes a key-value pair from the mapping.
 func deleteNodeKey(doc *yaml.Node, key string) {
 	for i := 0; i+1 < len(doc.Content); i += 2 {
-		if doc.Content[i].Value == key {
-			doc.Content = append(doc.Content[:i], doc.Content[i+2:]...)
-			return
+		if doc.Content[i].Value != key {
+			continue
 		}
+		doc.Content = append(doc.Content[:i], doc.Content[i+2:]...)
+		return
 	}
 }
 
@@ -471,12 +472,12 @@ func applyGeoFieldsMap(doc map[string]any, cfg *config.Config) {
 
 // splitEndpoint splits "host:port" into host string and port int.
 // Uses net.SplitHostPort for robustness; endpoint is pre-validated by validateWarpEndpoint.
-func splitEndpoint(endpoint string) (string, int) {
+func splitEndpoint(endpoint string) (host string, port int) {
 	host, portStr, err := net.SplitHostPort(endpoint)
 	if err != nil {
 		return endpoint, 0
 	}
-	port, err := strconv.Atoi(portStr)
+	port, err = strconv.Atoi(portStr)
 	if err != nil {
 		return host, 0
 	}

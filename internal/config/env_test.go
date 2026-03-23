@@ -14,7 +14,7 @@ func setEnv(t *testing.T, pairs ...string) {
 		t.Fatal("setEnv requires an even number of arguments (key, value pairs)")
 	}
 	for i := 0; i < len(pairs); i += 2 {
-		t.Setenv(pairs[i], pairs[i+1])
+		t.Setenv(pairs[i], pairs[i+1]) // #nosec G602
 	}
 }
 
@@ -475,7 +475,9 @@ func TestLoadProxyUIDGIDValidation(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append(base, "PROXY_UID", tc.uid, "PROXY_GID", tc.gid)
+			args := make([]string, len(base), len(base)+4)
+			copy(args, base)
+			args = append(args, "PROXY_UID", tc.uid, "PROXY_GID", tc.gid)
 			setEnv(t, args...)
 			_, err := Load("test")
 			if tc.wantErr && err == nil {
