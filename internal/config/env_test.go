@@ -1,7 +1,7 @@
 package config
 
 import (
-    "reflect"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -194,15 +194,15 @@ func TestValidateCredentialPair(t *testing.T) {
 		{"control char in user", "aaaaaaA\x011", validPass, true},
 		{"null byte in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123\x004", true},
 		// shell metacharacters and spaces must be rejected
-		{"space in pass",       validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123 4", true},
-		{"dollar in pass",      validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123$4", true},
-		{"backtick in pass",    validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123`4", true},
+		{"space in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123 4", true},
+		{"dollar in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123$4", true},
+		{"backtick in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123`4", true},
 		{"doublequote in pass", validUser, `aBcDeFgHiJkLmNoPqRsTuVwXyZ0123"4`, true},
 		{"singlequote in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123'4", true},
-		{"backslash in pass",   validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123\\4", true},
-		{"ampersand in pass",   validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123&4", true},
-		{"semicolon in pass",   validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123;4", true},
-		{"pipe in pass",        validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123|4", true},
+		{"backslash in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123\\4", true},
+		{"ampersand in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123&4", true},
+		{"semicolon in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123;4", true},
+		{"pipe in pass", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123|4", true},
 		// complexity failures (length OK but weak)
 		{"pass all lowercase", validUser, strings.Repeat("a", 32), true},
 		{"pass all uppercase", validUser, strings.Repeat("A", 32), true},

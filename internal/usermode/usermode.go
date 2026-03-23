@@ -154,7 +154,7 @@ func nonRootLegacy(log *logging.Logger) error {
 // prepareDirectories creates MihomoData and WgcfData with secure permissions.
 func prepareDirectories(cfg *config.Config, log *logging.Logger) error {
 	for _, dir := range []string{cfg.Paths.MihomoData, cfg.Paths.WgcfData} {
-		if err := os.MkdirAll(dir, 0750); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("usermode: mkdir %s: %w", dir, err)
 		}
 		log.Debugf("usermode: ensured directory %s", dir)

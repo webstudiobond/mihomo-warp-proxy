@@ -29,9 +29,9 @@ package mihomo
 import (
 	"fmt"
 	"io"
-	"strconv"
-	"os"
 	"net"
+	"os"
+	"strconv"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
 	"gopkg.in/yaml.v3"
@@ -96,7 +96,7 @@ func patchConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, lo
 	if err != nil {
 		return fmt.Errorf("open config: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	raw, err := io.ReadAll(io.LimitReader(f, maxConfigSize+1))
 	if err != nil {
@@ -491,7 +491,7 @@ func writeConfigNode(path string, root *yaml.Node) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	return fsutil.AtomicWrite(path, data, 0600)
+	return fsutil.AtomicWrite(path, data, 0o600)
 }
 
 // writeConfigMap marshals a map[string]any and atomically writes it to path.
@@ -501,5 +501,5 @@ func writeConfigMap(path string, doc map[string]any) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	return fsutil.AtomicWrite(path, data, 0600)
+	return fsutil.AtomicWrite(path, data, 0o600)
 }

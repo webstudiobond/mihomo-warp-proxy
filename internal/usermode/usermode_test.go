@@ -16,9 +16,9 @@ func testCfg(mihomoData, wgcfData string) *config.Config {
 		ProxyGID:      911,
 		MultiUserMode: true,
 		Paths: config.Paths{
-			MihomoData:  mihomoData,
-			WgcfData:    wgcfData,
-			SuExecBin:   "/sbin/su-exec",
+			MihomoData:       mihomoData,
+			WgcfData:         wgcfData,
+			SuExecBin:        "/sbin/su-exec",
 			MihomoConfigFile: mihomoData + "/config.yaml",
 		},
 	}
@@ -57,10 +57,10 @@ func TestNonRootMultiUserWritable(t *testing.T) {
 	mihomoData := dir + "/mihomo"
 	wgcfData := dir + "/wgcf"
 
-	if err := os.MkdirAll(mihomoData, 0750); err != nil {
+	if err := os.MkdirAll(mihomoData, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(wgcfData, 0750); err != nil {
+	if err := os.MkdirAll(wgcfData, 0o750); err != nil {
 		t.Fatal(err)
 	}
 

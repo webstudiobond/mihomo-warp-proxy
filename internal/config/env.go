@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"strconv"
 	"regexp"
-	"time"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/validate"
 )

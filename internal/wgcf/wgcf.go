@@ -8,12 +8,12 @@ package wgcf
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"io"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
@@ -44,7 +44,7 @@ type Profile struct {
 //	yes      no       any              update key if set → generate
 //	no       any      any              register → update key if set → generate
 func Setup(cfg *config.Config, log *logging.Logger) error {
-	if err := os.MkdirAll(cfg.Paths.WgcfData, 0750); err != nil {
+	if err := os.MkdirAll(cfg.Paths.WgcfData, 0o750); err != nil {
 		return fmt.Errorf("wgcf: create data directory %q: %w", cfg.Paths.WgcfData, err)
 	}
 
@@ -107,8 +107,8 @@ func ParseProfile(cfg *config.Config) (*Profile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("wgcf: stat profile %q: %w", path, err)
 	}
-	if perms != 0600 && perms != 0400 {
-		return nil, fmt.Errorf("wgcf: profile %q has unsafe permissions %04o (want 0600 or 0400)", path, perms)
+	if perms != 0o600 && perms != 0o400 {
+		return nil, fmt.Errorf("wgcf: profile %q has unsafe permissions %04o (want 0o600 or 0o400)", path, perms)
 	}
 
 	// #nosec G304 -- Path is strictly internal (cfg.Paths.WgcfProfileFile) and
@@ -117,7 +117,7 @@ func ParseProfile(cfg *config.Config) (*Profile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("wgcf: read profile %q: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() //nolint:errcheck
 
 	data, err := io.ReadAll(io.LimitReader(f, maxWgcfFileSize+1))
 	if err != nil {
@@ -188,11 +188,11 @@ func redactArgs(args []string) string {
 	return strings.Join(safe, " ")
 }
 
-// secureFiles sets 0600 permissions on the account and profile files.
+// secureFiles sets 0o600 permissions on the account and profile files.
 // wgcf may create them with broader permissions depending on the system umask.
 func secureFiles(cfg *config.Config) error {
 	for _, path := range []string{cfg.Paths.WgcfAccountFile, cfg.Paths.WgcfProfileFile} {
-	    // #nosec G304 -- Paths are static constants strictly validated on startup.
+		// #nosec G304 -- Paths are static constants strictly validated on startup.
 		f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -200,8 +200,8 @@ func secureFiles(cfg *config.Config) error {
 			}
 			return fmt.Errorf("wgcf: open %q: %w", path, err)
 		}
-		chmodErr := f.Chmod(0600)
-		_ = f.Close()
+		chmodErr := f.Chmod(0o600)
+		defer func() { _ = f.Close() }() //nolint:errcheck
 		if chmodErr != nil {
 			return fmt.Errorf("wgcf: chmod %q: %w", path, chmodErr)
 		}

@@ -48,7 +48,7 @@ func TestVersionFromFile(t *testing.T) {
 
 	t.Run("valid version", func(t *testing.T) {
 		path := filepath.Join(dir, "version")
-		if err := os.WriteFile(path, []byte("1.2.3\n"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("1.2.3\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
@@ -66,7 +66,7 @@ func TestVersionFromFile(t *testing.T) {
 
 	t.Run("empty file returns unknown", func(t *testing.T) {
 		path := filepath.Join(dir, "empty")
-		if err := os.WriteFile(path, []byte("   \n"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("   \n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
@@ -77,7 +77,7 @@ func TestVersionFromFile(t *testing.T) {
 
 	t.Run("oversized version returns unknown", func(t *testing.T) {
 		path := filepath.Join(dir, "toolong")
-		if err := os.WriteFile(path, []byte(strings.Repeat("a", 33)), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(strings.Repeat("a", 33)), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
@@ -89,7 +89,7 @@ func TestVersionFromFile(t *testing.T) {
 	t.Run("control characters return unknown", func(t *testing.T) {
 		path := filepath.Join(dir, "ctrlchars")
 		// Embed a newline inside the version string — potential log injection.
-		if err := os.WriteFile(path, []byte("1.0\x00evil"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("1.0\x00evil"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		got := VersionFromFile(path)
@@ -114,11 +114,11 @@ func TestLoggerLevelFiltering(t *testing.T) {
 	logger.Info("this should not appear either")
 	logger.Warn("this should appear")
 
-	w.Close()
+	_ = w.Close()
 	os.Stderr = origStderr
 
 	buf := make([]byte, 4096)
-	n, _ := r.Read(buf)
+	n, _ := r.Read(buf) // #nosec errcheck
 	output := string(buf[:n])
 
 	if strings.Contains(output, "this should not appear") {
@@ -140,11 +140,11 @@ func TestLogOutputFormat(t *testing.T) {
 	logger := New(LevelDebug, "9.9.9")
 	logger.Info("hello world")
 
-	w.Close()
+	_ = w.Close()
 	os.Stderr = origStderr
 
 	buf := make([]byte, 4096)
-	n, _ := r.Read(buf)
+	n, _ := r.Read(buf) // #nosec errcheck
 	line := string(buf[:n])
 
 	// Verify all mandatory format components are present.

@@ -62,7 +62,7 @@ func atomicCopy(src, dst string) error {
 		}
 		return fmt.Errorf("backup: open source %q: %w", src, err)
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	info, err := in.Stat()
 	if err != nil {
@@ -86,7 +86,7 @@ func atomicCopy(src, dst string) error {
 		return fmt.Errorf("backup: source file %q exceeds 1MB limit", src)
 	}
 
-	return fsutil.AtomicWrite(dst, buf, 0600)
+	return fsutil.AtomicWrite(dst, buf, 0o600)
 }
 
 // isDirWritable probes write access to dir by attempting to create and
@@ -98,7 +98,7 @@ func isDirWritable(dir string) bool {
 	if err != nil {
 		return false
 	}
-	_ = f.Close()
-	_ = os.Remove(f.Name())
+	defer func() { _ = f.Close() }()
+	defer func() { _ = os.Remove(f.Name()) }()
 	return true
 }

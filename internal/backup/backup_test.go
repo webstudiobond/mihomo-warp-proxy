@@ -18,7 +18,7 @@ func TestConfigFileEmpty(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "config.yaml")
 
-	if err := os.WriteFile(src, []byte{}, 0600); err != nil {
+	if err := os.WriteFile(src, []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -37,7 +37,7 @@ func TestConfigFileCreatesBackup(t *testing.T) {
 	src := filepath.Join(dir, "config.yaml")
 	content := []byte("mode: rule\nmixed-port: 7890\n")
 
-	if err := os.WriteFile(src, content, 0600); err != nil {
+	if err := os.WriteFile(src, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -60,7 +60,7 @@ func TestConfigFileBackupPermissions(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "config.yaml")
 
-	if err := os.WriteFile(src, []byte("content"), 0600); err != nil {
+	if err := os.WriteFile(src, []byte("content"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -73,8 +73,8 @@ func TestConfigFileBackupPermissions(t *testing.T) {
 		t.Fatalf("backup file not found: %v", err)
 	}
 
-	if perm := info.Mode().Perm(); perm != 0600 {
-		t.Errorf("backup file permissions: got %04o, want 0600", perm)
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("backup file permissions: got %04o, want 0o600", perm)
 	}
 }
 
@@ -87,11 +87,11 @@ func TestConfigFileOverwritesExistingBackup(t *testing.T) {
 	newContent := []byte("new content")
 
 	// Create a stale backup from a previous run.
-	if err := os.WriteFile(back, oldContent, 0600); err != nil {
+	if err := os.WriteFile(back, oldContent, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(src, newContent, 0600); err != nil {
+	if err := os.WriteFile(src, newContent, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -115,7 +115,7 @@ func TestConfigFileSymlink(t *testing.T) {
 	link := filepath.Join(dir, "config.yaml")
 	content := []byte("real content via symlink")
 
-	if err := os.WriteFile(real, content, 0600); err != nil {
+	if err := os.WriteFile(real, content, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
