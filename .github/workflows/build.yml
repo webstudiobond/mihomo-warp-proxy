@@ -33,12 +33,14 @@ jobs:
           MIHOMO_VER=$(curl -sfL \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             https://api.github.com/repos/MetaCubeX/mihomo/releases/latest \
-            | jq -r .tag_name | sed 's/^v//')
+            | jq -r '.tag_name // empty' | sed 's/^v//')
+          [ -n "${MIHOMO_VER}" ] || { echo "ERROR: failed to resolve mihomo version" >&2; exit 1; }
 
           WGCF_VER=$(curl -sfL \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             https://api.github.com/repos/ViRb3/wgcf/releases/latest \
-            | jq -r .tag_name | sed 's/^v//')
+            | jq -r '.tag_name // empty' | sed 's/^v//')
+          [ -n "${WGCF_VER}" ] || { echo "ERROR: failed to resolve wgcf version" >&2; exit 1; }
 
           ALPINE_DIG=$(skopeo inspect docker://alpine:3.23 | jq -r .Digest)
           GO_DIG=$(skopeo inspect docker://golang:1.26-alpine3.23 | jq -r .Digest)
