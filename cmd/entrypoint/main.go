@@ -40,8 +40,6 @@ func main() {
 		log.Fatalf("configuration error: %v", err)
 	}
 
-	log.Debugf("configuration loaded: port=%d warp=%v geo=%v", cfg.ProxyPort, cfg.Warp.Enabled, cfg.Geo.Enabled)
-
 	// Reinitialise logger at the operator-configured level.
 	level, err := logging.ParseLevel(cfg.LogLevelStr)
 	if err != nil {
@@ -49,6 +47,8 @@ func main() {
 		level = logging.LevelWarn
 	}
 	log = logging.New(level, version)
+
+	log.Debugf("configuration loaded: port=%d warp=%v geo=%v", cfg.ProxyPort, cfg.Warp.Enabled, cfg.Geo.Enabled)
 
 	log.Debugf("entrypoint starting (version %s, reexec=%v)", version, reexec)
 
