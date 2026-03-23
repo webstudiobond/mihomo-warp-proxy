@@ -463,8 +463,9 @@ func validateMinLength(name, value string, min int) error {
 // validateCredential enforces length and character constraints on a single
 // credential string. The colon restriction exists because HTTP Basic Auth
 // encodes credentials as "user:pass" — a colon in the username would
-// corrupt the boundary. Quote and shell metacharacter restrictions prevent
-// injection when the value is marshalled into YAML by gopkg.in/yaml.v3.
+// corrupt the boundary. Shell metacharacters and spaces are rejected to ensure
+// safe interpolation in the Docker healthcheck CMD-SHELL — pwgen -s never
+// produces these characters so legitimate credentials are unaffected.
 func validateCredential(name, value string, maxLen int) error {
 	if len(value) > maxLen {
 		return fmt.Errorf("%s: value too long (max %d characters, got %d)", name, maxLen, len(value))
@@ -473,6 +474,9 @@ func validateCredential(name, value string, maxLen int) error {
 		switch {
 		case r == ':':
 			return fmt.Errorf("%s: colon not allowed (position %d)", name, i)
+		case r == '$' || r == '`' || r == '"' || r == '\'' || r == '\\' ||
+			r == '!' || r == '&' || r == ';' || r == '|' || r == '<' || r == '>' || r == ' ':
+			return fmt.Errorf("%s: shell metacharacter or space %q not allowed (position %d)", name, r, i)
 		case r < 0x20 || r == 0x7f:
 			return fmt.Errorf("%s: control character not allowed (position %d, value 0x%02x)", name, i, r)
 		case r == 0x00:
@@ -491,7 +495,8 @@ const passwordRequirements = "PROXY_PASS requirements: " +
 	"at least one lowercase letter (a-z); " +
 	"at least one digit (0-9); " +
 	"no run of more than 3 identical consecutive characters; " +
-	"at least 12 distinct characters. " +
+	"at least 12 distinct characters; " +
+	`no spaces or shell metacharacters ($, ` + "`" + `, ", ', \, !, &, ;, |, <, >). ` +
 	"Generate with: pwgen -s 128 1"
 
 // validatePasswordComplexity enforces strength requirements for PROXY_PASS.
