@@ -57,15 +57,15 @@ func Path(p, name string) error {
 	// Block paths into pseudo-filesystems and container runtime sockets.
 	// Access to these from within the container entrypoint is never legitimate.
 	restricted := []string{
-		"/proc/", "/sys/", "/dev/",
-		"/run/",
+		"/proc", "/sys", "/dev",
+		"/run",
 		"/var/run/docker.sock",
-		"/var/run/containerd/",
+		"/var/run/containerd",
 		"/.dockerenv",
 	}
-	for _, prefix := range restricted {
-		if p == prefix || strings.HasPrefix(p, prefix) {
-			return fmt.Errorf("%s: path targets restricted location: %q", name, p)
+	for _, rPath := range restricted {
+		if cleaned == rPath || strings.HasPrefix(cleaned, rPath+"/") {
+			return fmt.Errorf("%s: path targets restricted location: %q", name, cleaned)
 		}
 	}
 

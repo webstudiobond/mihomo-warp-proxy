@@ -30,6 +30,9 @@ func TestPath(t *testing.T) {
 		{"docker socket", "/var/run/docker.sock", true},
 		{"dockerenv", "/.dockerenv", true},
 		{"run dir", "/run/secrets", true},
+		{"exact proc without trailing slash", "/proc", true},
+		{"exact sys without trailing slash", "/sys", true},
+		{"valid path sharing prefix", "/process/data", false},
 		{"path too long", "/" + string(make([]byte, 4097)), true},
 	}
 
