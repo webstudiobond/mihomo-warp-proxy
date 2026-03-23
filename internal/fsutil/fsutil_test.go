@@ -24,7 +24,7 @@ func TestAtomicWrite(t *testing.T) {
 		t.Errorf("Got permissions %v, want 0o600", info.Mode().Perm())
 	}
 
-	got, err := os.ReadFile(file)
+	got, err := os.ReadFile(file) // #nosec G304
 	if err != nil {
 		t.Fatalf("Failed to read written file: %v", err)
 	}

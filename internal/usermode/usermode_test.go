@@ -71,10 +71,10 @@ func TestNonRootMultiUserWritable(t *testing.T) {
 	}
 
 	// ProxyUID/GID must be updated to the current process identity.
-	if cfg.ProxyUID != uint32(os.Getuid()) {
+	if cfg.ProxyUID != uint32(os.Getuid()) { // #nosec G115
 		t.Errorf("ProxyUID not updated: got %d, want %d", cfg.ProxyUID, os.Getuid())
 	}
-	if cfg.ProxyGID != uint32(os.Getgid()) {
+	if cfg.ProxyGID != uint32(os.Getgid()) { // #nosec G115
 		t.Errorf("ProxyGID not updated: got %d, want %d", cfg.ProxyGID, os.Getgid())
 	}
 }
@@ -95,8 +95,8 @@ func TestIsDirWritable(t *testing.T) {
 
 func TestIsDirOwnedBy(t *testing.T) {
 	dir := t.TempDir()
-	uid := uint32(os.Getuid())
-	gid := uint32(os.Getgid())
+	uid := uint32(os.Getuid()) // #nosec G115
+	gid := uint32(os.Getgid()) // #nosec G115
 
 	if !isDirOwnedBy(dir, uid, gid) {
 		t.Errorf("isDirOwnedBy: expected true for current uid:gid %d:%d", uid, gid)

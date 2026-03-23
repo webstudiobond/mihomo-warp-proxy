@@ -52,7 +52,6 @@ func PrepareGeoFiles(cfg *config.Config, log *logging.Logger) error {
 
 	g, _ := errgroup.WithContext(context.Background())
 	for _, entry := range urls {
-		entry := entry
 		g.Go(func() error {
 			return download(client, cfg, log, entry.url, entry.dst)
 		})
@@ -118,19 +117,20 @@ func fetchMeta(client *http.Client, cfg *config.Config, rawURL, origHost string)
 			return nil, "", fmt.Errorf("redirect target invalid: %w", err)
 		}
 
-		req, err := http.NewRequest(http.MethodHead, current, nil)
+		ctx, cancel := context.WithTimeout(context.Background(), headTimeout)
+		req, err := http.NewRequestWithContext(ctx, http.MethodHead, current, http.NoBody)
 		if err != nil {
+			cancel()
 			return nil, "", err
 		}
 		applyAuth(req, cfg, origHost)
 
-		ctx, cancel := context.WithTimeout(context.Background(), headTimeout)
-		resp, err := client.Do(req.WithContext(ctx))
+		resp, err := client.Do(req)
 		cancel()
 		if err != nil {
 			return nil, "", err
 		}
-		defer func() { _ = resp.Body.Close() }() // HEAD response body is empty; close error is non-actionable
+		_ = resp.Body.Close() //nolint:errcheck // HEAD response body is empty; close error is non-actionable
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return resp.Header, current, nil
@@ -159,20 +159,20 @@ func fetchMeta(client *http.Client, cfg *config.Config, rawURL, origHost string)
 // directory, then atomically renames it. The body is capped at maxFileSize
 // to prevent unbounded disk writes from a malicious or broken server.
 func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst string) error {
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
 	if err != nil {
 		return err
 	}
 	applyAuth(req, cfg, origHost)
 
-	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
-	defer cancel()
-
-	resp, err := client.Do(req.WithContext(ctx))
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // read-only body
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
@@ -192,8 +192,8 @@ func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst
 	}
 	tmpName := tmp.Name()
 	defer func() {
-		defer func() { _ = tmp.Close() }()
-		defer func() { _ = os.Remove(tmpName) }()
+		_ = tmp.Close()        //nolint:errcheck // cleanup
+		_ = os.Remove(tmpName) //nolint:errcheck // cleanup
 	}()
 
 	if err := tmp.Chmod(0o600); err != nil {
@@ -278,8 +278,8 @@ func writeCacheMeta(rawURL string, remoteHeaders http.Header, mihomoData string)
 	}
 	tmpName := tmp.Name()
 	defer func() {
-		defer func() { _ = tmp.Close() }()
-		defer func() { _ = os.Remove(tmpName) }()
+		_ = tmp.Close()        //nolint:errcheck // cleanup
+		_ = os.Remove(tmpName) //nolint:errcheck // cleanup
 	}()
 
 	if _, err := tmp.WriteString(data); err != nil {
@@ -307,7 +307,7 @@ func validateGeoURL(rawURL string) error {
 		return fmt.Errorf("invalid URL: %w", err)
 	}
 
-	if strings.ToLower(u.Scheme) != "https" {
+	if !strings.EqualFold(u.Scheme, "https") {
 		return fmt.Errorf("only HTTPS URLs are allowed, got scheme %q", u.Scheme)
 	}
 
@@ -372,7 +372,7 @@ func newHTTPClient() *http.Client {
 	dialer := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: -1, // keepalive disabled — matches DisableKeepAlives on transport
-		Control: func(network, address string, c syscall.RawConn) error {
+		Control: func(_, address string, _ syscall.RawConn) error {
 			host, _, err := net.SplitHostPort(address)
 			if err != nil {
 				return fmt.Errorf("geo: malformed dial address %q: %w", address, err)

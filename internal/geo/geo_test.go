@@ -160,7 +160,7 @@ func TestMetaKey(t *testing.T) {
 	}
 	hexPart := k1[:len(k1)-len(suffix)]
 	for _, r := range hexPart {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
 			t.Errorf("metaKey hex part contains non-hex character %q in %q", r, k1)
 		}
 	}
@@ -243,17 +243,17 @@ func TestStreamToFileSizeLimit(t *testing.T) {
 			if written+n > limit {
 				n = limit - written
 			}
-			_, _ = pw.Write(buf[:n])
+			_, _ = pw.Write(buf[:n]) //nolint:errcheck // mock write
 			written += n
 		}
-		_ = pw.Close()
+		_ = pw.Close() //nolint:errcheck // mock close
 	}()
 
 	// Replace resp.Body with the pipe reader to simulate a large download.
 	// We test the io.LimitReader enforcement directly.
 	limited := &limitedBody{r: pr, limit: maxFileSize + 1}
-	n, _ := countBytes(limited)
-	_ = pr.Close()
+	n, _ := countBytes(limited) //nolint:errcheck // intentionally exceeding limit
+	_ = pr.Close()              //nolint:errcheck // mock close
 
 	if n <= int64(maxFileSize) {
 		t.Errorf("test data generator produced only %d bytes, need > %d", n, maxFileSize)

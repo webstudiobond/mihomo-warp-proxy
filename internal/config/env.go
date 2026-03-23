@@ -117,29 +117,28 @@ func Load(version string) (*Config, error) {
 		Version: version,
 	}
 
-	var err error
-
-	if err = validatePaths(cfg.Paths); err != nil {
+	if err := validatePaths(&cfg.Paths); err != nil {
 		return nil, err
 	}
 
 	cfg.TZ = getEnv("TZ", "UTC")
-	if err = validateTZ(cfg.TZ); err != nil {
+	if err := validateTZ(cfg.TZ); err != nil {
 		return nil, err
 	}
 
 	cfg.LogLevelStr = getEnv("SCRIPT_LOG_LEVEL", "WARN")
-	if err = validateScriptLogLevel(cfg.LogLevelStr); err != nil {
+	if err := validateScriptLogLevel(cfg.LogLevelStr); err != nil {
 		return nil, err
 	}
 	cfg.LogLevelStr = strings.ToUpper(strings.TrimSpace(cfg.LogLevelStr))
 
 	cfg.ProxyLogLevel = getEnv("PROXY_LOG_LEVEL", "info")
-	if err = validateProxyLogLevel(cfg.ProxyLogLevel); err != nil {
+	if err := validateProxyLogLevel(cfg.ProxyLogLevel); err != nil {
 		return nil, err
 	}
 	cfg.ProxyLogLevel = strings.ToLower(strings.TrimSpace(cfg.ProxyLogLevel))
 
+	var err error
 	cfg.ProxyUID, err = parseUint32Env("PROXY_UID", "911", 1, 65535)
 	if err != nil {
 		return nil, err
@@ -158,7 +157,7 @@ func Load(version string) (*Config, error) {
 
 	cfg.ProxyUser = getEnv("PROXY_USER", "")
 	cfg.ProxyPass = getEnv("PROXY_PASS", "")
-	if err = validateCredentialPair(cfg.ProxyUser, cfg.ProxyPass); err != nil {
+	if err := validateCredentialPair(cfg.ProxyUser, cfg.ProxyPass); err != nil {
 		return nil, err
 	}
 
@@ -264,13 +263,13 @@ func loadWarpConfig() (WarpConfig, error) {
 
 	w.PlusKey = getEnv("WARP_PLUS_KEY", "")
 	if w.PlusKey != "" {
-		if err = validateWarpPlusKey(w.PlusKey); err != nil {
+		if err := validateWarpPlusKey(w.PlusKey); err != nil {
 			return w, err
 		}
 	}
 
 	w.Endpoint = getEnv("WARP_ENDPOINT", "engage.cloudflareclient.com:500")
-	if err = validateWarpEndpoint(w.Endpoint); err != nil {
+	if err := validateWarpEndpoint(w.Endpoint); err != nil {
 		return w, err
 	}
 
@@ -358,38 +357,38 @@ func parseBoolEnv(key, def string) (bool, error) {
 	}
 }
 
-func parseUint32Env(key, def string, min, max uint32) (uint32, error) {
+func parseUint32Env(key, def string, minVal, maxVal uint32) (uint32, error) {
 	raw := getEnv(key, def)
 	v, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("%s: invalid integer value %q", key, raw)
 	}
-	if v > math.MaxUint32 || uint32(v) < min || uint32(v) > max {
-		return 0, fmt.Errorf("%s: value %d out of range [%d, %d]", key, v, min, max)
+	if v > math.MaxUint32 || v < uint64(minVal) || v > uint64(maxVal) {
+		return 0, fmt.Errorf("%s: value %d out of range [%d, %d]", key, v, minVal, maxVal)
 	}
 	return uint32(v), nil
 }
 
-func parseUint16Env(key, def string, min, max uint16) (uint16, error) {
+func parseUint16Env(key, def string, minVal, maxVal uint16) (uint16, error) {
 	raw := getEnv(key, def)
 	v, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("%s: invalid integer value %q", key, raw)
 	}
-	if v > math.MaxUint16 || uint16(v) < min || uint16(v) > max {
-		return 0, fmt.Errorf("%s: value %d out of range [%d, %d]", key, v, min, max)
+	if v > math.MaxUint16 || v < uint64(minVal) || v > uint64(maxVal) {
+		return 0, fmt.Errorf("%s: value %d out of range [%d, %d]", key, v, minVal, maxVal)
 	}
 	return uint16(v), nil
 }
 
-func parseIntEnv(key, def string, min, max int) (int, error) {
+func parseIntEnv(key, def string, minVal, maxVal int) (int, error) {
 	raw := getEnv(key, def)
 	v, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil {
 		return 0, fmt.Errorf("%s: invalid integer value %q", key, raw)
 	}
-	if v < min || v > max {
-		return 0, fmt.Errorf("%s: value %d out of range [%d, %d]", key, v, min, max)
+	if v < minVal || v > maxVal {
+		return 0, fmt.Errorf("%s: value %d out of range [%d, %d]", key, v, minVal, maxVal)
 	}
 	return v, nil
 }
@@ -448,9 +447,9 @@ func validateCredentialPair(user, pass string) error {
 // validateMinLength enforces a minimum length for proxy credentials.
 // Short credentials are trivially brute-forced; 32 characters for the
 // password matches the minimum output of `pwgen -s 32 1`.
-func validateMinLength(name, value string, min int) error {
-	if len(value) < min {
-		return fmt.Errorf("%s: minimum length is %d characters, got %d", name, min, len(value))
+func validateMinLength(name, value string, minVal int) error {
+	if len(value) < minVal {
+		return fmt.Errorf("%s: minimum length is %d characters, got %d", name, minVal, len(value))
 	}
 	return nil
 }
@@ -461,7 +460,7 @@ func validateMinLength(name, value string, min int) error {
 // corrupt the boundary. Shell metacharacters and spaces are rejected to ensure
 // safe interpolation in the Docker healthcheck CMD-SHELL — pwgen -s never
 // produces these characters so legitimate credentials are unaffected.
-func validateCredential(name, value string, maxLen int) error {
+func validateCredential(name, value string, maxLen int) error { //nolint:gocyclo // flat logic, splitting reduces readability
 	if len(value) > maxLen {
 		return fmt.Errorf("%s: value too long (max %d characters, got %d)", name, maxLen, len(value))
 	}
@@ -505,7 +504,7 @@ const passwordRequirements = "PROXY_PASS requirements: " +
 //   - At least one decimal digit (0-9)
 //   - No run of more than 3 identical consecutive characters
 //   - At least 12 distinct characters (prevents e.g. aaaa...A1)
-func validatePasswordComplexity(pass string) error {
+func validatePasswordComplexity(pass string) error { //nolint:gocyclo // linear validation, splitting reduces readability
 	var hasUpper, hasLower, hasDigit bool
 	unique := make(map[rune]struct{})
 
@@ -680,7 +679,7 @@ func validateGeoCredential(name, value string) error {
 
 // FilterEnviron removes sensitive credentials from the environment slice.
 func FilterEnviron(environ []string) []string {
-	var clean []string
+	clean := make([]string, 0, len(environ))
 	for _, e := range environ {
 		if key, _, ok := strings.Cut(e, "="); ok {
 			switch key {
@@ -695,7 +694,7 @@ func FilterEnviron(environ []string) []string {
 
 // validatePaths ensures all core filesystem locations pass security boundaries,
 // providing defense-in-depth if these paths ever become user-configurable.
-func validatePaths(p Paths) error {
+func validatePaths(p *Paths) error {
 	paths := []struct {
 		name string
 		path string

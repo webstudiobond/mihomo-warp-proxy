@@ -57,7 +57,7 @@ func TestPrepareGeoFilesIntegration(t *testing.T) {
 		if info.Size() == 0 {
 			t.Errorf("file is empty: %s", f)
 		}
-		if perm := info.Mode().Perm(); perm != 0600 {
+		if perm := info.Mode().Perm(); perm != 0o600 {
 			t.Errorf("file %s has permissions %04o, want 0600", f, perm)
 		}
 	}
