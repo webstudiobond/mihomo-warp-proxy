@@ -335,7 +335,6 @@ func loadAmneziaConfig() (AmneziaConfig, error) {
 	return a, nil
 }
 
-// getEnv returns the value of the named environment variable, or def if unset or empty.
 func getEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -343,9 +342,6 @@ func getEnv(key, def string) string {
 	return def
 }
 
-// parseBoolEnv parses a boolean environment variable.
-// Accepted truthy values: true, 1, yes, on (case-insensitive).
-// Accepted falsy values: false, 0, no, off (case-insensitive).
 func parseBoolEnv(key, def string) (bool, error) {
 	raw := getEnv(key, def)
 	switch strings.ToLower(strings.TrimSpace(raw)) {
@@ -358,7 +354,6 @@ func parseBoolEnv(key, def string) (bool, error) {
 	}
 }
 
-// parseUint32Env parses an unsigned integer environment variable within [min, max].
 func parseUint32Env(key, def string, min, max uint32) (uint32, error) {
 	raw := getEnv(key, def)
 	v, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
@@ -371,7 +366,6 @@ func parseUint32Env(key, def string, min, max uint32) (uint32, error) {
 	return uint32(v), nil
 }
 
-// parseUint16Env parses an unsigned integer environment variable within [min, max].
 func parseUint16Env(key, def string, min, max uint16) (uint16, error) {
 	raw := getEnv(key, def)
 	v, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
@@ -384,7 +378,6 @@ func parseUint16Env(key, def string, min, max uint16) (uint16, error) {
 	return uint16(v), nil
 }
 
-// parseIntEnv parses a signed integer environment variable within [min, max].
 func parseIntEnv(key, def string, min, max int) (int, error) {
 	raw := getEnv(key, def)
 	v, err := strconv.Atoi(strings.TrimSpace(raw))
@@ -397,7 +390,6 @@ func parseIntEnv(key, def string, min, max int) (int, error) {
 	return v, nil
 }
 
-// validateScriptLogLevel checks that SCRIPT_LOG_LEVEL is one of the four accepted values.
 func validateScriptLogLevel(v string) error {
 	switch strings.ToUpper(strings.TrimSpace(v)) {
 	case "DEBUG", "INFO", "WARN", "ERROR":
@@ -407,7 +399,6 @@ func validateScriptLogLevel(v string) error {
 	}
 }
 
-// validateProxyLogLevel checks that PROXY_LOG_LEVEL is one of the values accepted by mihomo.
 func validateProxyLogLevel(v string) error {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "silent", "error", "warning", "info", "debug":
@@ -637,7 +628,6 @@ func isIPv4(s string) bool {
 	return true
 }
 
-// validateTZ checks that the timezone string is a valid IANA location.
 func validateTZ(tz string) error {
 	if _, err := time.LoadLocation(tz); err != nil {
 		return fmt.Errorf("TZ: invalid timezone %q: %w", tz, err)
@@ -649,7 +639,6 @@ func validateTZ(tz string) error {
 // four groups of 8 hex characters separated by hyphens.
 var warpPlusKeyRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{8}-[0-9a-fA-F]{8}-[0-9a-fA-F]{8}$`)
 
-// validateWarpPlusKey checks that the WARP+ license key matches the expected format.
 func validateWarpPlusKey(key string) error {
 	if !warpPlusKeyRe.MatchString(key) {
 		return fmt.Errorf("WARP_PLUS_KEY: invalid format %q (expected: xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx where x is a hex digit)", key)
@@ -657,7 +646,6 @@ func validateWarpPlusKey(key string) error {
 	return nil
 }
 
-// validateGeoURL checks that a GEO URL uses HTTPS scheme.
 func validateGeoURL(name, rawURL string) error {
 	if !strings.HasPrefix(strings.ToLower(rawURL), "https://") {
 		return fmt.Errorf("%s: only HTTPS URLs are allowed, got %q", name, rawURL)
