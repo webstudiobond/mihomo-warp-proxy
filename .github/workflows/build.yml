@@ -13,6 +13,7 @@ jobs:
   check:
     name: Check for upstream updates
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       needs_build: ${{ steps.check.outputs.needs_build }}
       mihomo_ver:  ${{ steps.check.outputs.mihomo_ver }}
@@ -42,8 +43,10 @@ jobs:
             | jq -r '.tag_name // empty' | sed 's/^v//')
           [ -n "${WGCF_VER}" ] || { echo "ERROR: failed to resolve wgcf version" >&2; exit 1; }
 
-          ALPINE_DIG=$(skopeo inspect docker://alpine:3.23 | jq -r .Digest)
-          GO_DIG=$(skopeo inspect docker://golang:1.26-alpine3.23 | jq -r .Digest)
+          ALPINE_DIG=$(skopeo inspect docker://alpine:3.23 | jq -r '.Digest // empty')
+          [ -n "${ALPINE_DIG}" ] || { echo "ERROR: failed to resolve alpine digest" >&2; exit 1; }
+          GO_DIG=$(skopeo inspect docker://golang:1.26-alpine3.23 | jq -r '.Digest // empty')
+          [ -n "${GO_DIG}" ] || { echo "ERROR: failed to resolve go digest" >&2; exit 1; }
 
           IMAGE_BASE=$(echo "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
 
@@ -84,6 +87,7 @@ jobs:
     needs: check
     if: needs.check.outputs.needs_build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -150,6 +154,7 @@ jobs:
     needs: [check, build]
     if: needs.check.outputs.needs_build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
