@@ -5,6 +5,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -41,56 +42,56 @@ type GeoURLs struct {
 
 // GeoConfig controls geodata download behaviour.
 type GeoConfig struct {
-	Enabled    bool
-	Redownload bool
-	AutoUpdate bool
 	URLs       GeoURLs
 	AuthUser   string
 	AuthPass   string
+	Enabled    bool
+	Redownload bool
+	AutoUpdate bool
 }
 
 // AmneziaConfig holds AmneziaWG obfuscation parameters.
 // JMin and JMax are only meaningful when Enabled is true; the validator
 // enforces 0 <= JMin < JMax <= 1280 as required by the AmneziaWG spec.
 type AmneziaConfig struct {
-	Enabled bool
+	// I1–I5 are AmneziaWG v2 init packet templates. Empty string means unused.
+	I       [5]string
 	JC      int
 	JMin    int
 	JMax    int
-	// I1–I5 are AmneziaWG v2 init packet templates. Empty string means unused.
-	I [5]string
+	Enabled bool
 }
 
 // WarpConfig controls Cloudflare WARP provisioning via wgcf.
 type WarpConfig struct {
-	Enabled    bool
-	Regenerate bool
-	PlusKey    string
-	// Endpoint is the validated "host:port" string for the WARP UDP endpoint.
-	Endpoint string
 	// DNS is the parsed, validated list of DNS resolvers injected into the
 	// mihomo WireGuard proxy block. Supports IPv4, IPv6, DoT, DoH, DoQ.
 	DNS     []string
-	Amnezia AmneziaConfig
+	PlusKey string
+	// Endpoint is the validated "host:port" string for the WARP UDP endpoint.
+	Endpoint   string
+	Amnezia    AmneziaConfig
+	Enabled    bool
+	Regenerate bool
 }
 
 // Config is the fully parsed and validated runtime configuration.
 // Zero values are never meaningful — always obtain via Load().
 type Config struct {
+	Paths         Paths
 	TZ            string
 	LogLevelStr   string
 	ProxyLogLevel string
+	ProxyUser     string
+	ProxyPass     string
+	Version       string
+	Geo           GeoConfig
+	Warp          WarpConfig
 	ProxyUID      uint32
 	ProxyGID      uint32
 	ProxyPort     uint16
-	ProxyUser     string
-	ProxyPass     string
 	MultiUserMode bool
 	UseIP6        bool
-	Geo           GeoConfig
-	Warp          WarpConfig
-	Paths         Paths
-	Version       string
 }
 
 // defaultPaths returns the fixed filesystem layout baked into the image.
@@ -138,16 +139,17 @@ func Load(version string) (*Config, error) {
 	}
 	cfg.ProxyLogLevel = strings.ToLower(strings.TrimSpace(cfg.ProxyLogLevel))
 
-	var err error
-	cfg.ProxyUID, err = parseUint32Env("PROXY_UID", "911", 1, 65535)
+	uid, err := parseUint32Env("PROXY_UID", "911", 1, 65535)
 	if err != nil {
 		return nil, err
 	}
+	cfg.ProxyUID = uid
 
-	cfg.ProxyGID, err = parseUint32Env("PROXY_GID", "911", 1, 65535)
+	gid, err := parseUint32Env("PROXY_GID", "911", 1, 65535)
 	if err != nil {
 		return nil, err
 	}
+	cfg.ProxyGID = gid
 
 	port, err := parseUint16Env("PROXY_PORT", "7890", 1, 65535)
 	if err != nil {
@@ -157,29 +159,34 @@ func Load(version string) (*Config, error) {
 
 	cfg.ProxyUser = getEnv("PROXY_USER", "")
 	cfg.ProxyPass = getEnv("PROXY_PASS", "")
-	if err := validateCredentialPair(cfg.ProxyUser, cfg.ProxyPass); err != nil {
-		return nil, err
-	}
-
-	cfg.MultiUserMode, err = parseBoolEnv("MULTI_USER_MODE", "true")
+	err = validateCredentialPair(cfg.ProxyUser, cfg.ProxyPass)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.UseIP6, err = parseBoolEnv("USE_IP6", "true")
+	multiUser, err := parseBoolEnv("MULTI_USER_MODE", "true")
 	if err != nil {
 		return nil, err
 	}
+	cfg.MultiUserMode = multiUser
 
-	cfg.Geo, err = loadGeoConfig()
+	useIP6, err := parseBoolEnv("USE_IP6", "true")
 	if err != nil {
 		return nil, err
 	}
+	cfg.UseIP6 = useIP6
 
-	cfg.Warp, err = loadWarpConfig()
+	geo, err := loadGeoConfig()
 	if err != nil {
 		return nil, err
 	}
+	cfg.Geo = geo
+
+	warp, err := loadWarpConfig()
+	if err != nil {
+		return nil, err
+	}
+	cfg.Warp = warp
 
 	return cfg, nil
 }
@@ -229,7 +236,7 @@ func loadGeoConfig() (GeoConfig, error) {
 
 	// Both or neither — a partial credential pair is a misconfiguration.
 	if (g.AuthUser == "") != (g.AuthPass == "") {
-		return g, fmt.Errorf("GEO_AUTH_USER and GEO_AUTH_PASS must both be set or both be empty")
+		return g, errors.New("GEO_AUTH_USER and GEO_AUTH_PASS must both be set or both be empty")
 	}
 
 	if g.AuthUser != "" {
@@ -246,43 +253,45 @@ func loadGeoConfig() (GeoConfig, error) {
 
 // loadWarpConfig parses all WARP_* environment variables.
 func loadWarpConfig() (WarpConfig, error) {
-	var (
-		w   WarpConfig
-		err error
-	)
+	var w WarpConfig
 
-	w.Enabled, err = parseBoolEnv("USE_WARP_CONFIG", "true")
+	enabled, err := parseBoolEnv("USE_WARP_CONFIG", "true")
 	if err != nil {
 		return w, err
 	}
+	w.Enabled = enabled
 
-	w.Regenerate, err = parseBoolEnv("WARP_REGENERATE", "false")
+	regenerate, err := parseBoolEnv("WARP_REGENERATE", "false")
 	if err != nil {
 		return w, err
 	}
+	w.Regenerate = regenerate
 
 	w.PlusKey = getEnv("WARP_PLUS_KEY", "")
 	if w.PlusKey != "" {
-		if err := validateWarpPlusKey(w.PlusKey); err != nil {
+		err = validateWarpPlusKey(w.PlusKey)
+		if err != nil {
 			return w, err
 		}
 	}
 
 	w.Endpoint = getEnv("WARP_ENDPOINT", "engage.cloudflareclient.com:500")
-	if err := validateWarpEndpoint(w.Endpoint); err != nil {
-		return w, err
-	}
-
-	dnsRaw := getEnv("WARP_DNS", "1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001")
-	w.DNS, err = parseDNSList(dnsRaw)
+	err = validateWarpEndpoint(w.Endpoint)
 	if err != nil {
 		return w, err
 	}
 
-	w.Amnezia, err = loadAmneziaConfig()
+	dns, err := parseDNSList(getEnv("WARP_DNS", "1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001"))
 	if err != nil {
 		return w, err
 	}
+	w.DNS = dns
+
+	amnezia, err := loadAmneziaConfig()
+	if err != nil {
+		return w, err
+	}
+	w.Amnezia = amnezia
 
 	return w, nil
 }
@@ -331,7 +340,7 @@ func loadAmneziaConfig() (AmneziaConfig, error) {
 	for i, val := range a.I {
 		name := fmt.Sprintf("WARP_AMNEZIA_I%d", i+1)
 		if err := validate.AmneziaIParam(name, val); err != nil {
-			return a, err
+			return a, fmt.Errorf("%s: %w", name, err)
 		}
 	}
 
@@ -419,14 +428,14 @@ func validateCredentialPair(user, pass string) error {
 	passSet := pass != ""
 
 	if !userSet && !passSet {
-		return fmt.Errorf("PROXY_USER and PROXY_PASS are required — an open unauthenticated proxy is a security risk; " +
+		return errors.New("PROXY_USER and PROXY_PASS are required — an open unauthenticated proxy is a security risk; " +
 			"generate credentials with: pwgen -s 64 1 && pwgen -s 128 1")
 	}
 	if userSet && !passSet {
-		return fmt.Errorf("PROXY_PASS must be set when PROXY_USER is provided")
+		return errors.New("PROXY_PASS must be set when PROXY_USER is provided")
 	}
 	if !userSet && passSet {
-		return fmt.Errorf("PROXY_USER must be set when PROXY_PASS is provided")
+		return errors.New("PROXY_USER must be set when PROXY_PASS is provided")
 	}
 
 	if err := validateMinLength("PROXY_USER", user, 8); err != nil {
@@ -558,7 +567,7 @@ func validateWarpEndpoint(endpoint string) error {
 // parseDNSList splits a comma-separated DNS string and validates each entry.
 func parseDNSList(raw string) ([]string, error) {
 	if strings.TrimSpace(raw) == "" {
-		return nil, fmt.Errorf("WARP_DNS: must not be empty")
+		return nil, errors.New("WARP_DNS: must not be empty")
 	}
 
 	parts := strings.Split(raw, ",")
@@ -576,7 +585,7 @@ func parseDNSList(raw string) ([]string, error) {
 	}
 
 	if len(result) == 0 {
-		return nil, fmt.Errorf("WARP_DNS: no valid entries found")
+		return nil, errors.New("WARP_DNS: no valid entries found")
 	}
 	if len(result) > 8 {
 		return nil, fmt.Errorf("WARP_DNS: too many entries (max 8, got %d)", len(result))
@@ -711,7 +720,7 @@ func validatePaths(p *Paths) error {
 	}
 	for _, target := range paths {
 		if err := validate.Path(target.path, target.name); err != nil {
-			return err
+			return fmt.Errorf("path validation: %w", err)
 		}
 	}
 	return nil

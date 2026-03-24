@@ -27,6 +27,7 @@
 package mihomo
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -50,8 +51,8 @@ func EnsureConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, l
 	if _, err := os.Stat(cfg.Paths.MihomoConfigFile); err != nil {
 		if os.IsNotExist(err) {
 			log.Debug("mihomo: config not found, creating from template")
-			if err := createTemplate(cfg, profile, reserved); err != nil {
-				return fmt.Errorf("mihomo: create template: %w", err)
+			if errTmpl := createTemplate(cfg, profile, reserved); errTmpl != nil {
+				return fmt.Errorf("mihomo: create template: %w", errTmpl)
 			}
 			log.Debug("mihomo: config created from template")
 			return nil
@@ -115,7 +116,7 @@ func patchConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, lo
 	// yaml.Unmarshal wraps the document in a DocumentNode.
 	doc := docMapping(&root)
 	if doc == nil {
-		return fmt.Errorf("config is not a YAML mapping")
+		return errors.New("config is not a YAML mapping")
 	}
 
 	applyOwnedFieldsNode(doc, cfg)
@@ -138,7 +139,7 @@ func patchConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, lo
 
 // applyOwnedFieldsNode updates the top-level managed scalar fields in place.
 func applyOwnedFieldsNode(doc *yaml.Node, cfg *config.Config) {
-	setNodeScalar(doc, "mixed-port", "!!int", fmt.Sprintf("%d", cfg.ProxyPort))
+	setNodeScalar(doc, "mixed-port", "!!int", strconv.FormatUint(uint64(cfg.ProxyPort), 10))
 	setNodeScalar(doc, "log-level", "!!str", cfg.ProxyLogLevel)
 	setNodeScalar(doc, "ipv6", "!!bool", boolStr(cfg.UseIP6))
 	setNodeScalar(doc, "allow-lan", "!!bool", "true")
@@ -425,7 +426,7 @@ func strNode(v string) *yaml.Node {
 }
 
 func intNode(v int) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: fmt.Sprintf("%d", v)}
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(v)}
 }
 
 func boolNode(v bool) *yaml.Node {
@@ -492,7 +493,10 @@ func writeConfigNode(path string, root *yaml.Node) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	return fsutil.AtomicWrite(path, data, 0o600)
+	if err := fsutil.AtomicWrite(path, data, 0o600); err != nil {
+		return fmt.Errorf("atomic write: %w", err)
+	}
+	return nil
 }
 
 // writeConfigMap marshals a map[string]any and atomically writes it to path.
@@ -502,5 +506,8 @@ func writeConfigMap(path string, doc map[string]any) error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	return fsutil.AtomicWrite(path, data, 0o600)
+	if err := fsutil.AtomicWrite(path, data, 0o600); err != nil {
+		return fmt.Errorf("atomic write: %w", err)
+	}
+	return nil
 }

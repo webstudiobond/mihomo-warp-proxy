@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -56,7 +57,10 @@ func PrepareGeoFiles(cfg *config.Config, log *logging.Logger) error {
 			return download(client, cfg, log, entry.url, entry.dst)
 		})
 	}
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("geo: sync downloads: %w", err)
+	}
+	return nil
 }
 
 // download fetches a single geo file to dst, skipping if the remote has not
@@ -112,7 +116,7 @@ func download(client *http.Client, cfg *config.Config, log *logging.Logger, rawU
 func fetchMeta(client *http.Client, cfg *config.Config, rawURL, origHost string) (http.Header, string, error) {
 	current := rawURL
 
-	for i := 0; i < maxRedirects; i++ {
+	for range maxRedirects {
 		if err := validateGeoURL(current); err != nil {
 			return nil, "", fmt.Errorf("redirect target invalid: %w", err)
 		}
@@ -121,14 +125,14 @@ func fetchMeta(client *http.Client, cfg *config.Config, rawURL, origHost string)
 		req, err := http.NewRequestWithContext(ctx, http.MethodHead, current, http.NoBody)
 		if err != nil {
 			cancel()
-			return nil, "", err
+			return nil, "", fmt.Errorf("create HEAD request: %w", err)
 		}
 		applyAuth(req, cfg, origHost)
 
 		resp, err := client.Do(req)
 		cancel()
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("create HEAD request: %w", err)
 		}
 		_ = resp.Body.Close() //nolint:errcheck // HEAD response body is empty; close error is non-actionable
 
@@ -164,13 +168,13 @@ func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
 	if err != nil {
-		return err
+		return fmt.Errorf("create GET request: %w", err)
 	}
 	applyAuth(req, cfg, origHost)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("execute GET request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // read-only body
 
@@ -196,7 +200,8 @@ func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst
 		_ = os.Remove(tmpName) //nolint:errcheck // cleanup
 	}()
 
-	if err := tmp.Chmod(0o600); err != nil {
+	err = tmp.Chmod(0o600)
+	if err != nil {
 		return fmt.Errorf("chmod temp file: %w", err)
 	}
 
@@ -209,7 +214,7 @@ func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst
 		return fmt.Errorf("download exceeds %d byte limit", maxFileSize)
 	}
 	if n == 0 {
-		return fmt.Errorf("downloaded file is empty")
+		return errors.New("downloaded file is empty")
 	}
 
 	if err := tmp.Sync(); err != nil {
@@ -219,7 +224,10 @@ func streamToFile(client *http.Client, cfg *config.Config, rawURL, origHost, dst
 		return fmt.Errorf("close temp file: %w", err)
 	}
 
-	return os.Rename(tmpName, dst)
+	if err := os.Rename(tmpName, dst); err != nil {
+		return fmt.Errorf("rename temp file: %w", err)
+	}
+	return nil
 }
 
 // metaKey returns a deterministic cache filename derived from the URL so that
@@ -233,7 +241,7 @@ func metaKey(rawURL string) string {
 func cacheDir(mihomoData string) (string, error) {
 	dir := filepath.Join(mihomoData, ".cache")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", err
+		return "", fmt.Errorf("create cache directory: %w", err)
 	}
 	return dir, nil
 }
@@ -247,14 +255,14 @@ func isCached(dst, rawURL string, remoteHeaders http.Header, mihomoData string) 
 
 	dir, err := cacheDir(mihomoData)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("resolve cache dir: %w", err)
 	}
 
 	cacheFile := filepath.Join(dir, metaKey(rawURL))
 	// #nosec G304 -- Path is deterministically constructed within the managed .cache directory.
 	cached, err := os.ReadFile(cacheFile)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("read cache metadata: %w", err)
 	}
 
 	current := serializeMeta(remoteHeaders)
@@ -266,7 +274,7 @@ func isCached(dst, rawURL string, remoteHeaders http.Header, mihomoData string) 
 func writeCacheMeta(rawURL string, remoteHeaders http.Header, mihomoData string) error {
 	dir, err := cacheDir(mihomoData)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve cache dir: %w", err)
 	}
 
 	cacheFile := filepath.Join(dir, metaKey(rawURL))
@@ -274,7 +282,7 @@ func writeCacheMeta(rawURL string, remoteHeaders http.Header, mihomoData string)
 
 	tmp, err := os.CreateTemp(dir, ".meta_*.tmp")
 	if err != nil {
-		return err
+		return fmt.Errorf("create temp cache file: %w", err)
 	}
 	tmpName := tmp.Name()
 	defer func() {
@@ -283,12 +291,15 @@ func writeCacheMeta(rawURL string, remoteHeaders http.Header, mihomoData string)
 	}()
 
 	if _, err := tmp.WriteString(data); err != nil {
-		return err
+		return fmt.Errorf("write cache metadata: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return err
+		return fmt.Errorf("close temp cache file: %w", err)
 	}
-	return os.Rename(tmpName, cacheFile)
+	if err := os.Rename(tmpName, cacheFile); err != nil {
+		return fmt.Errorf("rename cache file: %w", err)
+	}
+	return nil
 }
 
 // serializeMeta extracts cache-relevant headers into a deterministic string.
@@ -324,7 +335,10 @@ func validateGeoURL(rawURL string) error {
 		}
 	}
 
-	return validate.ResolveAndValidate(host)
+	if err := validate.ResolveAndValidate(host); err != nil {
+		return fmt.Errorf("resolve and validate host: %w", err)
+	}
+	return nil
 }
 
 // resolveRedirect resolves a redirect Location value against the current URL,
@@ -332,7 +346,7 @@ func validateGeoURL(rawURL string) error {
 func resolveRedirect(current, location string) (string, error) {
 	base, err := url.Parse(current)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse current URL: %w", err)
 	}
 	loc, err := url.Parse(location)
 	if err != nil {

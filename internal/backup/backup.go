@@ -86,7 +86,10 @@ func atomicCopy(src, dst string) error {
 		return fmt.Errorf("backup: source file %q exceeds 1MB limit", src)
 	}
 
-	return fsutil.AtomicWrite(dst, buf, 0o600)
+	if err := fsutil.AtomicWrite(dst, buf, 0o600); err != nil {
+		return fmt.Errorf("backup: write %q: %w", dst, err)
+	}
+	return nil
 }
 
 // isDirWritable probes write access to dir by attempting to create and

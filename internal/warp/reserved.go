@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,7 +85,7 @@ func FetchReserved(accountFile string, log *logging.Logger) ([3]byte, error) {
 	}
 
 	if resp.Config.ClientID == "" {
-		return empty, fmt.Errorf("warp: client_id not present in API response")
+		return empty, errors.New("warp: client_id not present in API response")
 	}
 
 	reserved, err := decodeClientID(resp.Config.ClientID)
@@ -106,7 +107,7 @@ func fetchDeviceInfo(accessToken, deviceID string) (*deviceResponse, error) {
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, http.NoBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create API request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+accessToken)
@@ -117,7 +118,7 @@ func fetchDeviceInfo(accessToken, deviceID string) (*deviceResponse, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("execute API request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }() //nolint:errcheck // read-only body
 
@@ -166,20 +167,20 @@ func parseAccountFile(path string) (*accountFields, error) {
 	// verified by the caller (checkFilePermissions).
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open account file: %w", err)
 	}
 	defer func() { _ = f.Close() }() //nolint:errcheck // read-only file
 
 	data, err := io.ReadAll(io.LimitReader(f, maxAccountFileSize+1))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read account file: %w", err)
 	}
 	if len(data) > maxAccountFileSize {
 		return nil, fmt.Errorf("account file %q exceeds 64KB limit", path)
 	}
 
 	fields := &accountFields{}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
