@@ -98,9 +98,13 @@ services:
       options:
         max-size: "10M"
         max-file: "2"
-    cpus: 0.5
-    mem_limit: 512m
-    mem_reservation: 256m
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
+        reservations:
+          memory: 256m
 
 networks:
   proxy:
