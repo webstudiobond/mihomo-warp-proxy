@@ -8,30 +8,66 @@ linters:
   default: none
   enable:
     - errcheck
-    - staticcheck
     - ineffassign
+    - govet
+    - nilerr
+    - nilnil
+    - nilnesserr
+    - errorlint
+    - durationcheck
+    - makezero
+    - recvcheck
+    - reassign
+
     - gosec
+
     - bodyclose
     - noctx
-    - gocyclo
+
+    - staticcheck
+    - wrapcheck
+    - contextcheck
+    - nosprintfhostport
+    - forcetypeassert
+    - nolintlint
+
+    - sqlclosecheck
+    - rowserrcheck
+
     - prealloc
+    - perfsprint
+    - fatcontext
+    - mirror
+
+    - gocyclo
     - unconvert
     - gocritic
     - goconst
+    - unused
+    - wastedassign
+    - nestif
+    - predeclared
+    - intrange
+    - modernize
+    - exptostd
+
     - revive
-    - misspell
+    - errname
     - nakedret
     - unparam
     - whitespace
-    - errname
+    - misspell
+    - godoclint
     - copyloopvar
 
   settings:
     errcheck:
       check-type-assertions: true
       check-blank: true
+
     gocyclo:
       min-complexity: 15
+
     gocritic:
       enabled-tags:
         - diagnostic
@@ -39,8 +75,29 @@ linters:
         - performance
         - style
 
+    govet:
+      enable-all: true
+
+    nestif:
+      min-complexity: 5
+
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+
+    wrapcheck:
+      ignore-package-globs:
+        - encoding/*
+        - github.com/pkg/errors
+
   exclusions:
     presets: []
+    rules:
+      - path: _test\.go
+        linters:
+          - wrapcheck
+          - contextcheck
 
 formatters:
   enable:

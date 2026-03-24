@@ -1,4 +1,4 @@
-//nolint:errcheck // Type assertions in tests safely panic on failure
+//nolint:errcheck,forcetypeassert // Type assertions in tests safely panic on failure
 package mihomo
 
 import (

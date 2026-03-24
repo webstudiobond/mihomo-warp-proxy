@@ -229,7 +229,10 @@ func reexecAsUser(cfg *config.Config, log *logging.Logger) error {
 	log.Debugf("usermode: re-execing as %s via su-exec", uidGid)
 
 	// #nosec G204 -- suExec path and arguments are internally constructed from config.
-	return syscall.Exec(suExec, args, config.FilterEnviron(os.Environ()))
+	if err := syscall.Exec(suExec, args, config.FilterEnviron(os.Environ())); err != nil {
+		return fmt.Errorf("usermode: syscall.Exec failed: %w", err)
+	}
+	return nil
 }
 
 // isDirOwnedBy returns true when the directory's owner matches uid:gid.
@@ -259,11 +262,15 @@ func isDirWritable(dir string) bool {
 
 // chownDirRecursive recursively sets ownership of dir and all its contents.
 func chownDirRecursive(dir string, uid, gid int) error {
-	return filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // skip inaccessible entries
+			return nil //nolint:nilerr // best-effort chown; skip inaccessible entries without halting traversal
 		}
 		// #nosec G122 -- Lchown prevents symlink traversal; dir is exclusively controlled.
 		return os.Lchown(path, uid, gid)
 	})
+	if err != nil {
+		return fmt.Errorf("usermode: chown recursive %s: %w", dir, err)
+	}
+	return nil
 }

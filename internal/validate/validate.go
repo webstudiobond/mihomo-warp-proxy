@@ -5,6 +5,7 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"path/filepath"
@@ -199,23 +200,21 @@ func AmneziaIParam(name, val string) error {
 // parseTagNumeric parses a tag of the form "<prefix N>". It validates the
 // numeric value and returns the remaining string after the closing ">".
 func parseTagNumeric(s, prefix string, minVal, maxVal int) (tail string, err error) {
-	inner := s[len(prefix):]
-	end := strings.Index(inner, ">")
-	if end < 0 {
+	inner, tail, ok := strings.Cut(s[len(prefix):], ">")
+	if !ok {
 		return "", fmt.Errorf("unclosed tag %q in %q", prefix, truncate(s))
 	}
-	numStr := inner[:end]
-	_, err = parseTagInt(numStr, minVal, maxVal)
+	_, err = parseTagInt(inner, minVal, maxVal)
 	if err != nil {
 		return "", err
 	}
-	return inner[end+1:], nil
+	return tail, nil
 }
 
 // parseTagInt converts a tag numeric argument string to int within [min, max].
 func parseTagInt(s string, minVal, maxVal int) (int, error) {
 	if s == "" {
-		return 0, fmt.Errorf("missing numeric argument")
+		return 0, errors.New("missing numeric argument")
 	}
 	n := 0
 	for _, r := range s {
@@ -233,7 +232,7 @@ func parseTagInt(s string, minVal, maxVal int) (int, error) {
 // validateHex checks that s contains only hexadecimal characters.
 func validateHex(s string) error {
 	if s == "" {
-		return fmt.Errorf("empty hex value")
+		return errors.New("empty hex value")
 	}
 	for i, r := range s {
 		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {

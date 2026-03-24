@@ -27,9 +27,9 @@ const (
 // no package may create its own logger.
 type Logger struct {
 	handler slog.Handler
+	version string
 	level   slog.Level
 	pid     int
-	version string
 }
 
 // logHandler is a custom slog.Handler that produces the fixed-format output:
@@ -39,9 +39,9 @@ type Logger struct {
 // slog's built-in handlers (Text, JSON) cannot produce this exact line structure,
 // so we implement the interface directly rather than wrapping an existing handler.
 type logHandler struct {
+	version string
 	level   slog.Level
 	pid     int
-	version string
 }
 
 func (h *logHandler) Enabled(_ context.Context, l slog.Level) bool {
@@ -59,7 +59,10 @@ func (h *logHandler) Handle(_ context.Context, r slog.Record) error { //nolint:g
 		ts, levelStr, h.pid, msg, h.version)
 
 	_, err := os.Stderr.WriteString(line)
-	return err
+	if err != nil {
+		return fmt.Errorf("write log line: %w", err)
+	}
+	return nil
 }
 
 // WithAttrs and WithGroup satisfy the slog.Handler interface.

@@ -91,7 +91,10 @@ func runCommonTasks(cfg *config.Config, log *logging.Logger) error {
 	}
 
 	log.Debug("warp disabled — ensuring minimal mihomo config")
-	return mihomo.EnsureConfig(cfg, nil, [3]byte{}, log)
+	if err := mihomo.EnsureConfig(cfg, nil, [3]byte{}, log); err != nil {
+		return fmt.Errorf("mihomo: ensure config: %w", err)
+	}
+	return nil
 }
 
 // runWarpSetup provisions the WARP account, parses the profile, optionally
@@ -116,8 +119,10 @@ func runWarpSetup(cfg *config.Config, log *logging.Logger) error {
 		reserved = r
 	}
 
-	return mihomo.EnsureConfig(cfg, profile, reserved, log)
-	// ensureConfig logs internally
+	if err := mihomo.EnsureConfig(cfg, profile, reserved, log); err != nil {
+		return fmt.Errorf("mihomo: ensure config: %w", err)
+	}
+	return nil
 }
 
 // execMihomo replaces the current process with the mihomo binary.

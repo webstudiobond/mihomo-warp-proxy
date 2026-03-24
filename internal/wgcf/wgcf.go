@@ -8,6 +8,7 @@ package wgcf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -219,7 +220,7 @@ func parseINI(content string) (*Profile, error) {
 	p := &Profile{}
 	var currentSection string
 
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		line = strings.TrimSpace(line)
 
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -262,8 +263,7 @@ func parseINI(content string) (*Profile, error) {
 // individual IPv4 and IPv6 addresses, stripping CIDR notation.
 // wgcf always produces exactly one IPv4 and one IPv6 address.
 func splitAddresses(raw string) (ipv4, ipv6 string, err error) {
-	parts := strings.Split(raw, ",")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(raw, ",") {
 		addr := strings.TrimSpace(part)
 		// Strip CIDR mask.
 		if idx := strings.Index(addr, "/"); idx >= 0 {
@@ -294,10 +294,10 @@ func validateProfile(p *Profile) error {
 		return fmt.Errorf("PublicKey must be 44 characters, got %d", len(p.PublicKey))
 	}
 	if p.IPv4 == "" {
-		return fmt.Errorf("IPv4 address missing")
+		return errors.New("IPv4 address missing")
 	}
 	if p.IPv6 == "" {
-		return fmt.Errorf("IPv6 address missing")
+		return errors.New("IPv6 address missing")
 	}
 	for _, r := range p.PrivateKey {
 		if !isBase64Char(r) {
@@ -327,7 +327,7 @@ func fileExists(path string) bool {
 func filePermissions(path string) (os.FileMode, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("stat file %q: %w", path, err)
 	}
 	return info.Mode().Perm(), nil
 }
