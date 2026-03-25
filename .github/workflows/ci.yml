@@ -57,3 +57,28 @@ jobs:
         uses: golangci/golangci-lint-action@v9.2.0
         with:
           version: latest
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: go.mod
+          go-package: ./...
+
+  trivy:
+    name: Trivy Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
