@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
+	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
 )
 
@@ -83,10 +84,10 @@ func TestNonRootMultiUserWritable(t *testing.T) {
 
 func TestIsDirWritable(t *testing.T) {
 	dir := t.TempDir()
-	if !isDirWritable(dir) {
+	if !fsutil.IsDirWritable(dir) {
 		t.Error("temp dir should be writable")
 	}
-	if isDirWritable("/proc/1") {
+	if fsutil.IsDirWritable("/proc/1") {
 		t.Error("/proc/1 should not be writable")
 	}
 }

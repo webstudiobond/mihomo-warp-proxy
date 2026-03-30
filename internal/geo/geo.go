@@ -51,7 +51,9 @@ func PrepareGeoFiles(cfg *config.Config, log *logging.Logger) error {
 
 	client := newHTTPClient()
 
-	g, _ := errgroup.WithContext(context.Background())
+	// Using errgroup.Group directly since we don't need context cancellation.
+	// Parallel downloads run to completion or fail together.
+	g := &errgroup.Group{}
 	for _, entry := range urls {
 		g.Go(func() error {
 			return download(client, cfg, log, entry.url, entry.dst)

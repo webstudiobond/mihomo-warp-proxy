@@ -2,7 +2,7 @@
 
 # ── Stage 1: compile the Go entrypoint binary ─────────────────────────────────
 # TARGETOS/TARGETARCH are injected by buildx for each platform in the matrix.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine3.23 AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.26.1-alpine3.23@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS go-builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -11,7 +11,6 @@ WORKDIR /src
 
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
 
 # Version is injected from the build arg so the compiled binary carries it
@@ -24,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     ./cmd/entrypoint/
 
 # ── Stage 2: download wgcf and mihomo for the target platform ─────────────────
-FROM alpine:3.23 AS bin-builder
+FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS bin-builder
 
 # ash supports -e and -o pipefail via the SHELL directive; required for
 # correct pipe exit-code propagation in the download verification steps.
@@ -87,7 +86,7 @@ RUN MIHOMO_VERSION=$(wget -q -O - \
     chmod +x /tmp/mihomo
 
 # ── Stage 3: final image ───────────────────────────────────────────────────────
-FROM alpine:3.23
+FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
 
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 

@@ -686,12 +686,17 @@ func validateGeoCredential(name, value string) error {
 	return nil
 }
 
-// FilterEnviron removes sensitive credentials from the environment slice.
+// FilterEnviron removes sensitive credentials from the environment slice
+// before passing it to subprocesses (wgcf, mihomo). This prevents credential
+// leakage through process listing or accidental logging by child processes.
 func FilterEnviron(environ []string) []string {
 	clean := make([]string, 0, len(environ))
 	for _, e := range environ {
 		if key, _, ok := strings.Cut(e, "="); ok {
 			switch key {
+			// Proxy credentials, WARP+ license key, and geo auth must never
+			// reach child processes — they have no need for these values and
+			// exposing them would increase the attack surface.
 			case "PROXY_PASS", "GEO_AUTH_USER", "GEO_AUTH_PASS", "WARP_PLUS_KEY":
 				continue
 			}

@@ -41,7 +41,7 @@ func ConfigFile(src string) error {
 	}
 
 	dir := filepath.Dir(src)
-	if !isDirWritable(dir) {
+	if !fsutil.IsDirWritable(dir) {
 		// Non-writable parent means we are operating on a read-only mount.
 		// Log-worthy but not fatal — the caller decides whether to proceed.
 		return fmt.Errorf("backup: parent directory %q is not writable", dir)
@@ -90,18 +90,4 @@ func atomicCopy(src, dst string) error {
 		return fmt.Errorf("backup: write %q: %w", dst, err)
 	}
 	return nil
-}
-
-// isDirWritable probes write access to dir by attempting to create and
-// immediately remove a temporary file. This is the only reliable cross-platform
-// method — permission bits alone do not account for ACLs, read-only mounts,
-// or quota exhaustion.
-func isDirWritable(dir string) bool {
-	f, err := os.CreateTemp(dir, ".write_probe_*.tmp")
-	if err != nil {
-		return false
-	}
-	_ = f.Close()           //nolint:errcheck // probe cleanup
-	_ = os.Remove(f.Name()) //nolint:errcheck // probe cleanup
-	return true
 }

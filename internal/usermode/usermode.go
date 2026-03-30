@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
+	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
 	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
 )
 
@@ -115,11 +116,11 @@ func nonRootMultiUser(cfg *config.Config, log *logging.Logger) error {
 		return fmt.Errorf("usermode: stat %s: %w", cfg.Paths.WgcfData, err)
 	}
 
-	if !isDirWritable(cfg.Paths.MihomoData) {
+	if !fsutil.IsDirWritable(cfg.Paths.MihomoData) {
 		return fmt.Errorf("usermode: no write access to %s — ensure the directory is owned by %d:%d",
 			cfg.Paths.MihomoData, uid, gid)
 	}
-	if !isDirWritable(cfg.Paths.WgcfData) {
+	if !fsutil.IsDirWritable(cfg.Paths.WgcfData) {
 		return fmt.Errorf("usermode: no write access to %s — ensure the directory is owned by %d:%d",
 			cfg.Paths.WgcfData, uid, gid)
 	}
@@ -247,17 +248,6 @@ func isDirOwnedBy(dir string, uid, gid uint32) bool {
 		return false
 	}
 	return stat.Uid == uid && stat.Gid == gid
-}
-
-// isDirWritable probes write access by creating and removing a temp file.
-func isDirWritable(dir string) bool {
-	f, err := os.CreateTemp(dir, ".write_probe_*.tmp")
-	if err != nil {
-		return false
-	}
-	_ = f.Close()           //nolint:errcheck // probe cleanup
-	_ = os.Remove(f.Name()) //nolint:errcheck // probe cleanup
-	return true
 }
 
 // chownDirRecursive recursively sets ownership of dir and all its contents.
