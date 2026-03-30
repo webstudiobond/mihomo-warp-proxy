@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
 )
 
 func TestConfigFileNonExistent(t *testing.T) {
@@ -162,11 +164,11 @@ func TestConfigFileSourceNotRegular(t *testing.T) {
 
 func TestIsDirWritable(t *testing.T) {
 	dir := t.TempDir()
-	if !isDirWritable(dir) {
+	if !fsutil.IsDirWritable(dir) {
 		t.Error("temp dir should be writable")
 	}
 
-	if isDirWritable("/proc/1") {
+	if fsutil.IsDirWritable("/proc/1") {
 		t.Error("/proc/1 should not be writable")
 	}
 }

@@ -60,3 +60,17 @@ func AtomicWrite(filename string, data []byte, perm os.FileMode) error {
 	done = true
 	return nil
 }
+
+// IsDirWritable probes write access to dir by attempting to create and
+// immediately remove a temporary file. This is the only reliable cross-platform
+// method — permission bits alone do not account for ACLs, read-only mounts,
+// or quota exhaustion.
+func IsDirWritable(dir string) bool {
+	f, err := os.CreateTemp(dir, ".write_probe_*.tmp")
+	if err != nil {
+		return false
+	}
+	_ = f.Close()           //nolint:errcheck // probe cleanup
+	_ = os.Remove(f.Name()) //nolint:errcheck // probe cleanup
+	return true
+}

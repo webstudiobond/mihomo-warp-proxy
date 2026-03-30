@@ -115,7 +115,12 @@ func fetchDeviceInfo(accessToken, deviceID string) (*deviceResponse, error) {
 	req.Header.Set("User-Agent", "okhttp/3.12.1")
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	// Client-level timeout as defense-in-depth beyond the context timeout.
+	// The context handles most cases, but the client timeout catches edge cases
+	// where the context is cancelled improperly.
+	client := &http.Client{
+		Timeout: apiTimeout,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("execute API request: %w", err)
