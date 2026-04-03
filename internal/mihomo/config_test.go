@@ -8,9 +8,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/wgcf"
+	"github.com/underhax/mihomo-warp-proxy/internal/config"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/wgcf"
 )
 
 const (

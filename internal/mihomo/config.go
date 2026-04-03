@@ -34,12 +34,12 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
+	"github.com/underhax/mihomo-warp-proxy/internal/fsutil"
 	"gopkg.in/yaml.v3"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/wgcf"
+	"github.com/underhax/mihomo-warp-proxy/internal/config"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/wgcf"
 )
 
 const maxConfigSize = 1024 * 1024 // 1 MB limit to prevent YAML bomb DoS

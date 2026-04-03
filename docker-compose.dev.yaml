@@ -2,7 +2,7 @@ name: mihomo-warp-proxy-dev
 
 # Local development compose file — builds the image from the cloned repository
 # source instead of pulling from the registry.
-# Security considerations for local builds: https://github.com/webstudiobond/mihomo-warp-proxy?tab=readme-ov-file#security-considerations-for-local-builds
+# Security considerations for local builds: https://github.com/underhax/mihomo-warp-proxy?tab=readme-ov-file#security-considerations-for-local-builds
 #
 # Usage:
 #   docker compose -f docker-compose.dev.yaml up --build
@@ -35,11 +35,11 @@ services:
       retries: 3
       start_period: 30s
     env_file:
-    # https://raw.githubusercontent.com/webstudiobond/mihomo-warp-proxy/main/env-example
+    # https://raw.githubusercontent.com/underhax/mihomo-warp-proxy/main/env-example
       - path: .env
         required: false
     # Full description of all variables:
-    # https://github.com/webstudiobond/mihomo-warp-proxy#configuration
+    # https://github.com/underhax/mihomo-warp-proxy#configuration
     environment:
       MIHOMO_CPU_VARIANT: ${MIHOMO_CPU_VARIANT:-v1}
       TZ: ${TZ:-UTC}

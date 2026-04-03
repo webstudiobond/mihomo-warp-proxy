@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/config"
+	"github.com/underhax/mihomo-warp-proxy/internal/fsutil"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
 )
 
 // knownFiles lists files in MihomoData whose ownership is updated on startup.

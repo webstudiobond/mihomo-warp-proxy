@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/validate"
+	"github.com/underhax/mihomo-warp-proxy/internal/fsutil"
+	"github.com/underhax/mihomo-warp-proxy/internal/validate"
 )
 
 // maxBackupSize mirrors the config file size limit in mihomo/config.go.

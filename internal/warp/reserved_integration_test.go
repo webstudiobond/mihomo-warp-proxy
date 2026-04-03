@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
 )
 
 // TestFetchReservedIntegration requires a real wgcf-account.toml produced by

@@ -1,4 +1,4 @@
-module github.com/webstudiobond/mihomo-warp-proxy
+module github.com/underhax/mihomo-warp-proxy
 
 go 1.26.1
 

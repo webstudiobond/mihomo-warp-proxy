@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/config"
+	"github.com/underhax/mihomo-warp-proxy/internal/fsutil"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
 )
 
 var testLog = logging.New(logging.LevelDebug, "test")

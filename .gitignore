@@ -31,3 +31,7 @@ wgcf-data/
 .vscode/
 *.swp
 *.swo
+
+# Other
+*.md
+!README.md

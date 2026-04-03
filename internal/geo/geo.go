@@ -22,9 +22,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/validate"
+	"github.com/underhax/mihomo-warp-proxy/internal/config"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/validate"
 )
 
 const (

@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/config"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
 )
 
 // maxWgcfFileSize caps reads of wgcf-generated files to prevent OOM if an

@@ -2,13 +2,13 @@ name: mihomo-warp-proxy
 
 services:
   mihomo-proxy:
-    image: ghcr.io/webstudiobond/mihomo-warp-proxy:${MWP_VERSION:-latest}${MIHOMO_CPU_VARIANT:+-amd64${MIHOMO_CPU_VARIANT}}
+    image: ghcr.io/underhax/mihomo-warp-proxy:${MWP_VERSION:-latest}${MIHOMO_CPU_VARIANT:+-amd64${MIHOMO_CPU_VARIANT}}
     # Uncomment the build section to build the image directly from the GitHub
     # repository instead of pulling from the registry — useful when you need
     # a fresh build before the automated pipeline has published a new image.
     #
     # build:
-    #   context: https://github.com/webstudiobond/mihomo-warp-proxy.git
+    #   context: https://github.com/underhax/mihomo-warp-proxy.git
     #   args:
     #     MIHOMO_CPU_VARIANT: ${MIHOMO_CPU_VARIANT:-v1}
     pull_policy: always
@@ -27,11 +27,11 @@ services:
       retries: 3
       start_period: 30s
     env_file:
-    # https://raw.githubusercontent.com/webstudiobond/mihomo-warp-proxy/main/env-example
+    # https://raw.githubusercontent.com/underhax/mihomo-warp-proxy/main/env-example
       - path: .env
         required: false
     # Full description of all variables:
-    # https://github.com/webstudiobond/mihomo-warp-proxy#configuration
+    # https://github.com/underhax/mihomo-warp-proxy#configuration
     environment:
       MWP_VERSION: ${MWP_VERSION:-latest}
       MIHOMO_CPU_VARIANT: ${MIHOMO_CPU_VARIANT:-}

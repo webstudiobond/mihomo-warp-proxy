@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/fsutil"
+	"github.com/underhax/mihomo-warp-proxy/internal/fsutil"
 )
 
 func TestConfigFileNonExistent(t *testing.T) {

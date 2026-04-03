@@ -90,9 +90,9 @@ FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f
 
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 
-LABEL org.opencontainers.image.source="https://github.com/webstudiobond/mihomo-warp-proxy" \
+LABEL org.opencontainers.image.source="https://github.com/underhax/mihomo-warp-proxy" \
       org.opencontainers.image.description="Cloudflare WARP SOCKS5/HTTP(S) proxy via mihomo (Clash Meta)" \
-      maintainer="webstudiobond"
+      maintainer="underhax"
 
 # hadolint ignore=DL3018
 RUN apk add --no-cache \

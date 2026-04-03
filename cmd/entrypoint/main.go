@@ -14,14 +14,14 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/backup"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/config"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/geo"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/mihomo"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/usermode"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/warp"
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/wgcf"
+	"github.com/underhax/mihomo-warp-proxy/internal/backup"
+	"github.com/underhax/mihomo-warp-proxy/internal/config"
+	"github.com/underhax/mihomo-warp-proxy/internal/geo"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/mihomo"
+	"github.com/underhax/mihomo-warp-proxy/internal/usermode"
+	"github.com/underhax/mihomo-warp-proxy/internal/warp"
+	"github.com/underhax/mihomo-warp-proxy/internal/wgcf"
 )
 
 // version is set at build time via -ldflags="-X main.version=<ver>".

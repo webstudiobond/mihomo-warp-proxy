@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/validate"
+	"github.com/underhax/mihomo-warp-proxy/internal/validate"
 )
 
 // Paths groups filesystem locations that are fixed by the image layout.

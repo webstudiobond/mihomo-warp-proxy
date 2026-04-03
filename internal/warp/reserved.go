@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/webstudiobond/mihomo-warp-proxy/internal/logging"
+	"github.com/underhax/mihomo-warp-proxy/internal/logging"
 )
 
 // maxAccountFileSize caps reads of wgcf-account.toml to prevent OOM.
