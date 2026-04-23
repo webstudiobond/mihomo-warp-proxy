@@ -2,10 +2,10 @@
 
 A Docker container that exposes a Cloudflare WARP connection as an authenticated SOCKS5/HTTP(S) proxy, powered by [mihomo (Clash Meta)](https://github.com/MetaCubeX/mihomo) and [wgcf](https://github.com/ViRb3/wgcf).
 
-[![CI](https://github.com/webstudiobond/mihomo-warp-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/webstudiobond/mihomo-warp-proxy/actions/workflows/ci.yml)
-[![GitHub last commit](https://img.shields.io/github/last-commit/webstudiobond/mihomo-warp-proxy)](https://github.com/webstudiobond/mihomo-warp-proxy/commits/main)
-[![GitHub issues](https://img.shields.io/github/issues/webstudiobond/mihomo-warp-proxy)](https://github.com/webstudiobond/mihomo-warp-proxy/issues)
-[![GitHub repo size](https://img.shields.io/github/repo-size/webstudiobond/mihomo-warp-proxy)](https://github.com/webstudiobond/mihomo-warp-proxy)
+[![CI](https://github.com/underhax/mihomo-warp-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/underhax/mihomo-warp-proxy/actions/workflows/ci.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/underhax/mihomo-warp-proxy)](https://github.com/underhax/mihomo-warp-proxy/commits/main)
+[![GitHub issues](https://img.shields.io/github/issues/underhax/mihomo-warp-proxy)](https://github.com/underhax/mihomo-warp-proxy/issues)
+[![GitHub repo size](https://img.shields.io/github/repo-size/underhax/mihomo-warp-proxy)](https://github.com/underhax/mihomo-warp-proxy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 On startup the container automatically registers a Cloudflare WARP account, generates a WireGuard profile, and produces a minimal working mihomo configuration. Advanced users can extend the configuration with custom listeners, additional proxies, proxy groups, and routing rules — everything outside the set of managed fields is preserved across restarts.
@@ -31,9 +31,9 @@ On subsequent restarts the existing account and profile are reused — no new re
 ### 1. Download the configuration files
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/webstudiobond/mihomo-warp-proxy/main/docker-compose.yaml \
+curl -fsSL https://raw.githubusercontent.com/underhax/mihomo-warp-proxy/main/docker-compose.yaml \
   -o docker-compose.yaml
-curl -fsSL https://raw.githubusercontent.com/webstudiobond/mihomo-warp-proxy/main/env-example \
+curl -fsSL https://raw.githubusercontent.com/underhax/mihomo-warp-proxy/main/env-example \
   -o .env
 ```
 
@@ -93,7 +93,7 @@ If you need a fresh build before the automated pipeline publishes a new image, u
 
 ```yaml
 build:
-  context: https://github.com//webstudiobond/mihomo-warp-proxy.git
+  context: https://github.com//underhax/mihomo-warp-proxy.git
   args:
     MIHOMO_CPU_VARIANT: ${MIHOMO_CPU_VARIANT:-v1}
 ```
@@ -108,7 +108,7 @@ docker compose build --no-cache
 ## Local development — cloning the repository
 
 ```bash
-git clone https://github.com//webstudiobond/mihomo-warp-proxy.git
+git clone https://github.com//underhax/mihomo-warp-proxy.git
 cd mihomo-warp-proxy
 cp env-example .env
 # Edit .env and set PROXY_USER, PROXY_PASS
