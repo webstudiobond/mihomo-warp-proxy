@@ -44,6 +44,14 @@ import (
 
 const maxConfigSize = 1024 * 1024 // 1 MB limit to prevent YAML bomb DoS
 
+const (
+	yamlTagBool = "!!bool"
+	yamlTagInt  = "!!int"
+	yamlTagMap  = "!!map"
+	yamlTagSeq  = "!!seq"
+	yamlTagStr  = "!!str"
+)
+
 // EnsureConfig creates config.yaml from a minimal template when it does not
 // exist, then patches it with current environment values.
 // When the file already exists only owned fields are updated.
@@ -81,9 +89,9 @@ func createTemplate(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte)
 
 	if cfg.Warp.Enabled && profile != nil {
 		doc["proxies"] = []any{buildWarpProxy(cfg, profile, reserved)}
-		doc["rules"] = []any{"MATCH,warp"}
+		doc["rules"] = []any{minimalTemplateWarpRule()}
 	} else {
-		doc["rules"] = []any{"MATCH,DIRECT"}
+		doc["rules"] = []any{minimalTemplateDirectRule()}
 	}
 
 	return writeConfigMap(cfg.Paths.MihomoConfigFile, doc)
@@ -139,28 +147,29 @@ func patchConfig(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte, lo
 
 // applyOwnedFieldsNode updates the top-level managed scalar fields in place.
 func applyOwnedFieldsNode(doc *yaml.Node, cfg *config.Config) {
-	setNodeScalar(doc, "mixed-port", "!!int", strconv.FormatUint(uint64(cfg.ProxyPort), 10))
-	setNodeScalar(doc, "log-level", "!!str", cfg.ProxyLogLevel)
-	setNodeScalar(doc, "ipv6", "!!bool", boolStr(cfg.UseIP6))
-	setNodeScalar(doc, "allow-lan", "!!bool", "true")
-	setNodeScalar(doc, "bind-address", "!!str", "*")
+	setNodeScalar(doc, "mixed-port", yamlTagInt, strconv.FormatUint(uint64(cfg.ProxyPort), 10))
+	setNodeScalar(doc, "log-level", yamlTagStr, cfg.ProxyLogLevel)
+	setNodeScalar(doc, "ipv6", yamlTagBool, boolStr(cfg.UseIP6))
+	setNodeScalar(doc, "allow-lan", yamlTagBool, "true")
+	setNodeScalar(doc, "bind-address", yamlTagStr, "*")
 
-	authSeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	authSeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: yamlTagSeq}
 	if cfg.ProxyUser != "" && cfg.ProxyPass != "" {
 		authSeq.Content = append(authSeq.Content,
-			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: cfg.ProxyUser + ":" + cfg.ProxyPass})
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: cfg.ProxyUser + ":" + cfg.ProxyPass},
+		)
 	}
 	setNodeValue(doc, "authentication", authSeq)
 }
 
 // applyGeoFieldsNode writes or updates the geodata block.
 func applyGeoFieldsNode(doc *yaml.Node, cfg *config.Config) {
-	setNodeScalar(doc, "geodata-mode", "!!bool", "true")
-	setNodeScalar(doc, "geodata-loader", "!!str", "memconservative")
-	setNodeScalar(doc, "geo-auto-update", "!!bool", boolStr(cfg.Geo.AutoUpdate))
-	setNodeScalar(doc, "geo-update-interval", "!!int", "24")
+	setNodeScalar(doc, "geodata-mode", yamlTagBool, "true")
+	setNodeScalar(doc, "geodata-loader", yamlTagStr, "memconservative")
+	setNodeScalar(doc, "geo-auto-update", yamlTagBool, boolStr(cfg.Geo.AutoUpdate))
+	setNodeScalar(doc, "geo-update-interval", yamlTagInt, "24")
 
-	geoMap := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	geoMap := &yaml.Node{Kind: yaml.MappingNode, Tag: yamlTagMap}
 	for _, kv := range [][2]string{
 		{"geoip", cfg.Geo.URLs.GeoIP},
 		{"geosite", cfg.Geo.URLs.GeoSite},
@@ -168,8 +177,8 @@ func applyGeoFieldsNode(doc *yaml.Node, cfg *config.Config) {
 		{"asn", cfg.Geo.URLs.ASN},
 	} {
 		geoMap.Content = append(geoMap.Content,
-			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: kv[0]},
-			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: kv[1]},
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: kv[0]},
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: kv[1]},
 		)
 	}
 	setNodeValue(doc, "geox-url", geoMap)
@@ -195,7 +204,7 @@ func patchWarpProxy(doc *yaml.Node, cfg *config.Config, profile *wgcf.Profile, r
 	proxiesNode := getMappingValue(doc, "proxies")
 	if proxiesNode == nil || proxiesNode.Kind != yaml.SequenceNode {
 		// No proxies section — create one.
-		proxiesNode = &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+		proxiesNode = &yaml.Node{Kind: yaml.SequenceNode, Tag: yamlTagSeq}
 		setNodeValue(doc, "proxies", proxiesNode)
 	}
 
@@ -208,7 +217,7 @@ func patchWarpProxy(doc *yaml.Node, cfg *config.Config, profile *wgcf.Profile, r
 		if len(proxiesNode.Content) == 0 && isMinimalTemplateNode(doc) {
 			rulesNode := getMappingValue(doc, "rules")
 			if rulesNode != nil && len(rulesNode.Content) == 1 {
-				rulesNode.Content[0].Value = "MATCH,warp"
+				rulesNode.Content[0].Value = minimalTemplateWarpRule()
 				log.Debug("mihomo: replaced MATCH,DIRECT with MATCH,warp in minimal template config")
 			}
 		}
@@ -219,6 +228,14 @@ func patchWarpProxy(doc *yaml.Node, cfg *config.Config, profile *wgcf.Profile, r
 
 	// Replace the existing warp entry in-place — consistent key order.
 	proxiesNode.Content[idx] = warpNode
+}
+
+func minimalTemplateDirectRule() string {
+	return "MATCH,DIRECT"
+}
+
+func minimalTemplateWarpRule() string {
+	return "MATCH,warp"
 }
 
 // isMinimalTemplateNode returns true when the document has no proxies and
@@ -233,7 +250,7 @@ func isMinimalTemplateNode(doc *yaml.Node) bool {
 	if rulesNode == nil || rulesNode.Kind != yaml.SequenceNode || len(rulesNode.Content) != 1 {
 		return false
 	}
-	return rulesNode.Content[0].Value == "MATCH,DIRECT"
+	return rulesNode.Content[0].Value == minimalTemplateDirectRule()
 }
 
 // ── warp proxy builder ────────────────────────────────────────────────────────
@@ -246,7 +263,7 @@ func isMinimalTemplateNode(doc *yaml.Node) bool {
 //	refresh-server-ip-interval → amnezia-wg-option
 func buildWarpProxy(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte) *yaml.Node {
 	server, port := splitEndpoint(cfg.Warp.Endpoint)
-	n := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	n := &yaml.Node{Kind: yaml.MappingNode, Tag: yamlTagMap}
 
 	addStr := func(k, v string) {
 		n.Content = append(n.Content, strNode(k), strNode(v))
@@ -269,7 +286,7 @@ func buildWarpProxy(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte)
 	addStr("private-key", profile.PrivateKey)
 
 	if reserved != [3]byte{0, 0, 0} {
-		seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+		seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: yamlTagSeq}
 		for _, b := range reserved {
 			seq.Content = append(seq.Content, intNode(int(b)))
 		}
@@ -280,7 +297,7 @@ func buildWarpProxy(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte)
 	addInt("mtu", 1280)
 	addBool("remote-dns-resolve", true)
 
-	dnsSeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	dnsSeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: yamlTagSeq}
 	for _, d := range cfg.Warp.DNS {
 		dnsSeq.Content = append(dnsSeq.Content, strNode(d))
 	}
@@ -298,7 +315,7 @@ func buildWarpProxy(cfg *config.Config, profile *wgcf.Profile, reserved [3]byte)
 // explicit key order: jc → jmin → jmax → s1 → s2 → h1…h4 → i1…i5.
 func buildAmneziaNode(cfg *config.Config) *yaml.Node {
 	a := cfg.Warp.Amnezia
-	n := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	n := &yaml.Node{Kind: yaml.MappingNode, Tag: yamlTagMap}
 
 	addInt := func(k string, v int) {
 		n.Content = append(n.Content, strNode(k), intNode(v))
@@ -364,7 +381,7 @@ func setNodeScalar(doc *yaml.Node, key, tag, value string) {
 		return
 	}
 	doc.Content = append(doc.Content,
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: key},
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value},
 	)
 }
@@ -379,7 +396,7 @@ func setNodeValue(doc *yaml.Node, key string, val *yaml.Node) {
 		return
 	}
 	doc.Content = append(doc.Content,
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: key},
 		val,
 	)
 }
@@ -422,15 +439,15 @@ func yamlNodeName(n *yaml.Node) string {
 // ── scalar node constructors ─────────────────────────────────────────────────
 
 func strNode(v string) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v}
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: v}
 }
 
 func intNode(v int) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.Itoa(v)}
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagInt, Value: strconv.Itoa(v)}
 }
 
 func boolNode(v bool) *yaml.Node {
-	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: boolStr(v)}
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: yamlTagBool, Value: boolStr(v)}
 }
 
 func boolStr(v bool) string {

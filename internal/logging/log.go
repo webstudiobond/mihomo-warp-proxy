@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/underhax/mihomo-warp-proxy/internal/contract"
 )
 
 // Level mirrors slog.Level but uses the string names defined in the project's
@@ -71,22 +73,19 @@ func (h *logHandler) Handle(_ context.Context, r slog.Record) error { //nolint:g
 func (h *logHandler) WithAttrs(_ []slog.Attr) slog.Handler { return h }
 func (h *logHandler) WithGroup(_ string) slog.Handler      { return h }
 
-const infoName = "INFO"
-const versionUnknown = "unknown"
-
 // levelName returns the uppercase level string used in log output.
 func levelName(l slog.Level) string {
 	switch l {
 	case slog.LevelDebug:
-		return "DEBUG"
+		return contract.LogLevelDebug
 	case slog.LevelInfo:
-		return infoName
+		return contract.LogLevelInfo
 	case slog.LevelWarn:
-		return "WARN"
+		return contract.LogLevelWarn
 	case slog.LevelError:
-		return "ERROR"
+		return contract.LogLevelError
 	default:
-		return infoName
+		return contract.LogLevelInfo
 	}
 }
 
@@ -95,16 +94,23 @@ func levelName(l slog.Level) string {
 // whether to fatal or fall back to the default.
 func ParseLevel(s string) (slog.Level, error) {
 	switch strings.ToUpper(strings.TrimSpace(s)) {
-	case "DEBUG":
+	case contract.LogLevelDebug:
 		return LevelDebug, nil
-	case "INFO":
+	case contract.LogLevelInfo:
 		return LevelInfo, nil
-	case "WARN", "WARNING":
+	case contract.LogLevelWarn, "WARNING":
 		return LevelWarn, nil
-	case "ERROR":
+	case contract.LogLevelError:
 		return LevelError, nil
 	default:
-		return LevelWarn, fmt.Errorf("unrecognised SCRIPT_LOG_LEVEL %q: accepted values are DEBUG, INFO, WARN, ERROR", s)
+		return LevelWarn, fmt.Errorf("unrecognised %s %q: accepted values are %s, %s, %s, %s",
+			contract.EnvScriptLogLevel,
+			s,
+			contract.LogLevelDebug,
+			contract.LogLevelInfo,
+			contract.LogLevelWarn,
+			contract.LogLevelError,
+		)
 	}
 }
 
@@ -182,26 +188,38 @@ func (l *Logger) Fatalf(format string, args ...any) {
 func (l *Logger) Level() slog.Level { return l.level }
 
 // VersionFromFile reads the single-line version string from /app/version.
-// Returns "unknown" on any read or parse failure — a missing version file
-// must not prevent the entrypoint from starting.
+// Returns the fallback version string on any read or parse failure — a
+// missing version file must not prevent the entrypoint from starting.
 func VersionFromFile(path string) string {
+	v, ok := readSafeVersion(path)
+	if !ok {
+		return "unknown"
+	}
+	return v
+}
+
+func readSafeVersion(path string) (string, bool) {
 	// #nosec G304 -- The path is a fixed constant (cfg.Paths.VersionFile).
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return versionUnknown
+		return "", false
 	}
+
 	v := strings.TrimSpace(string(data))
-	if v == "" {
-		return versionUnknown
+	if !isSafeVersionString(v) {
+		return "", false
 	}
-	// Reject implausible version strings to avoid log-injection via the file.
-	if len(v) > 32 {
-		return versionUnknown
+	return v, true
+}
+
+func isSafeVersionString(v string) bool {
+	if v == "" || len(v) > 32 {
+		return false
 	}
 	for _, r := range v {
 		if r < 0x20 || r > 0x7e {
-			return versionUnknown
+			return false
 		}
 	}
-	return v
+	return true
 }

@@ -2,8 +2,11 @@ package config
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/underhax/mihomo-warp-proxy/internal/contract"
 )
 
 // setEnv sets environment variables for the duration of a test and restores
@@ -33,27 +36,28 @@ func TestParseBoolEnv(t *testing.T) {
 	cases := []struct {
 		key     string
 		val     string
-		def     string
+		def     bool
 		want    bool
 		wantErr bool
 	}{
-		{"K", "true", "false", true, false},
-		{"K", "True", "false", true, false},
-		{"K", "TRUE", "false", true, false},
-		{"K", "1", "false", true, false},
-		{"K", "yes", "false", true, false},
-		{"K", "on", "false", true, false},
-		{"K", "false", "true", false, false},
-		{"K", "0", "true", false, false},
-		{"K", "no", "true", false, false},
-		{"K", "off", "true", false, false},
-		{"K", "", "true", true, false},
-		{"K", "maybe", "false", false, true},
-		{"K", "yes please", "false", false, true},
+		{"K", "TRUE", false, true, false},
+		{"K", "True", false, true, false},
+		{"K", "TrUe", false, true, false},
+		{"K", "1", false, true, false},
+		{"K", "yes", false, true, false},
+		{"K", "on", false, true, false},
+		{"K", "FALSE", true, false, false},
+		{"K", "0", true, false, false},
+		{"K", "no", true, false, false},
+		{"K", "off", true, false, false},
+		{"K", "", true, true, false},
+		{"K", "maybe", false, false, true},
+		{"K", "yes please", false, false, true},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.val+"_default_"+tc.def, func(t *testing.T) {
+		defaultLabel := strconv.FormatBool(tc.def)
+		t.Run(tc.val+"_default_"+defaultLabel, func(t *testing.T) {
 			t.Setenv(tc.key, tc.val)
 			got, err := parseBoolEnv(tc.key, tc.def)
 			if tc.wantErr {
@@ -124,7 +128,7 @@ func TestValidatePasswordComplexity(t *testing.T) {
 		wantErr bool
 	}{
 		// valid — pwgen -s compatible
-		{"pwgen-style 32", "aBcDeFgHiJkLmNoPqRsTuVwXyZ012345", false},
+		{"pwgen-style 32", "zYxWvUtSrQpOnMlKjIhGfEdCbA987654", false},
 		{"pwgen-style 128", strings.Repeat("aB3cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV", 4), false},
 		{"with allowed special chars", "aB3dEfGhIjKlMn!opQrStUvWxYz01234", false},
 		// missing uppercase
@@ -186,7 +190,7 @@ func TestValidateCredentialPair(t *testing.T) {
 		{"user too long (65)", strings.Repeat("a", 65), validPass, true},
 		// pass length
 		{"pass too short (31)", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ01234", true},
-		{"pass min length (32)", validUser, "aBcDeFgHiJkLmNoPqRsTuVwXyZ012345", false},
+		{"pass min length (32)", validUser, "QwErTyUiOpAsDfGhJkLzXcVbNm123456", false},
 		{"pass too long (129)", validUser, strings.Repeat("aBcDeFgHiJkL", 10) + "mNoPq", true},
 		// forbidden chars
 		{"colon in user", validUser + ":", validPass, true},
@@ -324,18 +328,18 @@ func TestIsIPv4(t *testing.T) {
 func TestLoadDefaults(t *testing.T) {
 	user, pass := testCreds()
 	for _, k := range []string{
-		"TZ", "SCRIPT_LOG_LEVEL", "PROXY_LOG_LEVEL",
-		"PROXY_UID", "PROXY_GID", "PROXY_PORT",
-		"MULTI_USER_MODE", "USE_IP6",
-		"GEO", "GEO_REDOWNLOAD",
-		"GEO_URL_GEOIP", "GEO_URL_GEOSITE", "GEO_URL_MMDB", "GEO_URL_ASN",
-		"GEO_AUTH_USER", "GEO_AUTH_PASS",
-		"USE_WARP_CONFIG", "WARP_REGENERATE", "WARP_PLUS_KEY",
-		"WARP_ENDPOINT", "WARP_DNS", "WARP_AMNEZIA",
+		contract.EnvTZ, contract.EnvScriptLogLevel, contract.EnvProxyLogLevel,
+		contract.EnvProxyUID, contract.EnvProxyGID, contract.EnvProxyPort,
+		contract.EnvMultiUserMode, contract.EnvUseIP6,
+		contract.EnvGeo, contract.EnvGeoRedownload,
+		contract.EnvGeoURLGeoIP, contract.EnvGeoURLGeoSite, contract.EnvGeoURLMMDB, contract.EnvGeoURLASN,
+		contract.EnvGeoAuthUser, contract.EnvGeoAuthSecret,
+		contract.EnvUseWarpConfig, contract.EnvWarpRegenerate, contract.EnvWarpPlusKey,
+		contract.EnvWarpEndpoint, contract.EnvWarpDNS, contract.EnvWarpAmnezia,
 	} {
 		t.Setenv(k, "")
 	}
-	setEnv(t, "PROXY_USER", user, "PROXY_PASS", pass)
+	setEnv(t, contract.EnvProxyUser, user, contract.EnvProxyPass, pass)
 
 	cfg, err := Load("1.0.0")
 	if err != nil {
@@ -378,7 +382,7 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadEmptyCredentialsRejected(t *testing.T) {
-	setEnv(t, "PROXY_USER", "", "PROXY_PASS", "")
+	setEnv(t, contract.EnvProxyUser, "", contract.EnvProxyPass, "")
 	_, err := Load("test")
 	if err == nil {
 		t.Error("expected error for empty credentials, got nil")
@@ -388,13 +392,13 @@ func TestLoadEmptyCredentialsRejected(t *testing.T) {
 func TestLoadAmneziaValidation(t *testing.T) {
 	user, pass := testCreds()
 	base := []string{
-		"PROXY_USER", user, "PROXY_PASS", pass,
-		"WARP_AMNEZIA", "true",
-		"WARP_AMNEZIA_JC", "5",
+		contract.EnvProxyUser, user, contract.EnvProxyPass, pass,
+		contract.EnvWarpAmnezia, "TRUE",
+		contract.EnvWarpAmneziaJC, "5",
 	}
 
 	t.Run("jmin >= jmax rejected", func(t *testing.T) {
-		setEnv(t, append(base, "WARP_AMNEZIA_JMIN", "15", "WARP_AMNEZIA_JMAX", "15")...)
+		setEnv(t, append(base, contract.EnvWarpAmneziaJMin, "15", contract.EnvWarpAmneziaJMax, "15")...)
 		_, err := Load("test")
 		if err == nil {
 			t.Error("expected error for jmin == jmax, got nil")
@@ -402,7 +406,7 @@ func TestLoadAmneziaValidation(t *testing.T) {
 	})
 
 	t.Run("jmin > jmax rejected", func(t *testing.T) {
-		setEnv(t, append(base, "WARP_AMNEZIA_JMIN", "20", "WARP_AMNEZIA_JMAX", "10")...)
+		setEnv(t, append(base, contract.EnvWarpAmneziaJMin, "20", contract.EnvWarpAmneziaJMax, "10")...)
 		_, err := Load("test")
 		if err == nil {
 			t.Error("expected error for jmin > jmax, got nil")
@@ -410,7 +414,7 @@ func TestLoadAmneziaValidation(t *testing.T) {
 	})
 
 	t.Run("valid amnezia params accepted", func(t *testing.T) {
-		setEnv(t, append(base, "WARP_AMNEZIA_JMIN", "7", "WARP_AMNEZIA_JMAX", "15")...)
+		setEnv(t, append(base, contract.EnvWarpAmneziaJMin, "7", contract.EnvWarpAmneziaJMax, "15")...)
 		cfg, err := Load("test")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -430,9 +434,9 @@ func TestLoadAmneziaValidation(t *testing.T) {
 func TestLoadGeoAuthPartialCredentials(t *testing.T) {
 	user, pass := testCreds()
 	setEnv(t,
-		"PROXY_USER", user, "PROXY_PASS", pass,
-		"GEO_AUTH_USER", "user",
-		"GEO_AUTH_PASS", "",
+		contract.EnvProxyUser, user, contract.EnvProxyPass, pass,
+		contract.EnvGeoAuthUser, "user",
+		contract.EnvGeoAuthSecret, "",
 	)
 	_, err := Load("test")
 	if err == nil {
@@ -443,8 +447,8 @@ func TestLoadGeoAuthPartialCredentials(t *testing.T) {
 func TestLoadInvalidProxyLogLevel(t *testing.T) {
 	user, pass := testCreds()
 	setEnv(t,
-		"PROXY_USER", user, "PROXY_PASS", pass,
-		"PROXY_LOG_LEVEL", "verbose",
+		contract.EnvProxyUser, user, contract.EnvProxyPass, pass,
+		contract.EnvProxyLogLevel, "verbose",
 	)
 	_, err := Load("test")
 	if err == nil {
@@ -454,7 +458,7 @@ func TestLoadInvalidProxyLogLevel(t *testing.T) {
 
 func TestLoadProxyUIDGIDValidation(t *testing.T) {
 	user, pass := testCreds()
-	base := []string{"PROXY_USER", user, "PROXY_PASS", pass}
+	base := []string{contract.EnvProxyUser, user, contract.EnvProxyPass, pass}
 
 	cases := []struct {
 		name    string
@@ -477,7 +481,7 @@ func TestLoadProxyUIDGIDValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			args := make([]string, len(base), len(base)+4)
 			copy(args, base)
-			args = append(args, "PROXY_UID", tc.uid, "PROXY_GID", tc.gid)
+			args = append(args, contract.EnvProxyUID, tc.uid, contract.EnvProxyGID, tc.gid)
 			setEnv(t, args...)
 			_, err := Load("test")
 			if tc.wantErr && err == nil {
@@ -495,18 +499,18 @@ func TestLoadProxyUIDGIDValidation(t *testing.T) {
 func TestFilterEnviron(t *testing.T) {
 	input := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin",
-		"PROXY_USER=admin",
-		"PROXY_PASS=supersecret32chars!!!",
-		"GEO_AUTH_USER=alice",
-		"GEO_AUTH_PASS=bob",
-		"WARP_PLUS_KEY=1234-5678-90ab",
-		"TZ=UTC",
+		contract.EnvProxyUser + "=admin",
+		contract.EnvProxyPass + "=supersecret32chars!!!",
+		contract.EnvGeoAuthUser + "=alice",
+		contract.EnvGeoAuthSecret + "=bob",
+		contract.EnvWarpPlusKey + "=1234-5678-90ab",
+		contract.EnvTZ + "=UTC",
 		"INVALID_ENV_VAR",
 	}
 	want := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin",
-		"PROXY_USER=admin",
-		"TZ=UTC",
+		contract.EnvProxyUser + "=admin",
+		contract.EnvTZ + "=UTC",
 		"INVALID_ENV_VAR",
 	}
 

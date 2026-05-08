@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/underhax/mihomo-warp-proxy/internal/contract"
 	"github.com/underhax/mihomo-warp-proxy/internal/validate"
 )
 
@@ -122,55 +123,55 @@ func Load(version string) (*Config, error) {
 		return nil, err
 	}
 
-	cfg.TZ = getEnv("TZ", "UTC")
+	cfg.TZ = getEnv(contract.EnvTZ, "UTC")
 	if err := validateTZ(cfg.TZ); err != nil {
 		return nil, err
 	}
 
-	cfg.LogLevelStr = getEnv("SCRIPT_LOG_LEVEL", "WARN")
+	cfg.LogLevelStr = getEnv(contract.EnvScriptLogLevel, contract.LogLevelWarn)
 	if err := validateScriptLogLevel(cfg.LogLevelStr); err != nil {
 		return nil, err
 	}
 	cfg.LogLevelStr = strings.ToUpper(strings.TrimSpace(cfg.LogLevelStr))
 
-	cfg.ProxyLogLevel = getEnv("PROXY_LOG_LEVEL", "info")
+	cfg.ProxyLogLevel = getEnv(contract.EnvProxyLogLevel, "info")
 	if err := validateProxyLogLevel(cfg.ProxyLogLevel); err != nil {
 		return nil, err
 	}
 	cfg.ProxyLogLevel = strings.ToLower(strings.TrimSpace(cfg.ProxyLogLevel))
 
-	uid, err := parseUint32Env("PROXY_UID", "911", 1, 65535)
+	uid, err := parseUint32Env(contract.EnvProxyUID, "911", 1, 65535)
 	if err != nil {
 		return nil, err
 	}
 	cfg.ProxyUID = uid
 
-	gid, err := parseUint32Env("PROXY_GID", "911", 1, 65535)
+	gid, err := parseUint32Env(contract.EnvProxyGID, "911", 1, 65535)
 	if err != nil {
 		return nil, err
 	}
 	cfg.ProxyGID = gid
 
-	port, err := parseUint16Env("PROXY_PORT", "7890", 1, 65535)
+	port, err := parseUint16Env(contract.EnvProxyPort, "7890", 1, 65535)
 	if err != nil {
 		return nil, err
 	}
 	cfg.ProxyPort = port
 
-	cfg.ProxyUser = getEnv("PROXY_USER", "")
-	cfg.ProxyPass = getEnv("PROXY_PASS", "")
+	cfg.ProxyUser = getEnv(contract.EnvProxyUser, "")
+	cfg.ProxyPass = getEnv(contract.EnvProxyPass, "")
 	err = validateCredentialPair(cfg.ProxyUser, cfg.ProxyPass)
 	if err != nil {
 		return nil, err
 	}
 
-	multiUser, err := parseBoolEnv("MULTI_USER_MODE", "true")
+	multiUser, err := parseBoolEnv(contract.EnvMultiUserMode, true)
 	if err != nil {
 		return nil, err
 	}
 	cfg.MultiUserMode = multiUser
 
-	useIP6, err := parseBoolEnv("USE_IP6", "true")
+	useIP6, err := parseBoolEnv(contract.EnvUseIP6, true)
 	if err != nil {
 		return nil, err
 	}
@@ -198,52 +199,52 @@ func loadGeoConfig() (GeoConfig, error) {
 		err error
 	)
 
-	g.Enabled, err = parseBoolEnv("GEO", "false")
+	g.Enabled, err = parseBoolEnv(contract.EnvGeo, false)
 	if err != nil {
 		return g, err
 	}
 
-	g.Redownload, err = parseBoolEnv("GEO_REDOWNLOAD", "false")
+	g.Redownload, err = parseBoolEnv(contract.EnvGeoRedownload, false)
 	if err != nil {
 		return g, err
 	}
 
-	g.AutoUpdate, err = parseBoolEnv("GEO_AUTO_UPDATE", "false")
+	g.AutoUpdate, err = parseBoolEnv(contract.EnvGeoAutoUpdate, false)
 	if err != nil {
 		return g, err
 	}
 
 	g.URLs = GeoURLs{
-		GeoIP:   getEnv("GEO_URL_GEOIP", "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"),
-		GeoSite: getEnv("GEO_URL_GEOSITE", "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"),
-		MMDB:    getEnv("GEO_URL_MMDB", "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb"),
-		ASN:     getEnv("GEO_URL_ASN", "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb"),
+		GeoIP:   getEnv(contract.EnvGeoURLGeoIP, "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"),
+		GeoSite: getEnv(contract.EnvGeoURLGeoSite, "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"),
+		MMDB:    getEnv(contract.EnvGeoURLMMDB, "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb"),
+		ASN:     getEnv(contract.EnvGeoURLASN, "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb"),
 	}
 
 	for name, u := range map[string]string{
-		"GEO_URL_GEOIP":   g.URLs.GeoIP,
-		"GEO_URL_GEOSITE": g.URLs.GeoSite,
-		"GEO_URL_MMDB":    g.URLs.MMDB,
-		"GEO_URL_ASN":     g.URLs.ASN,
+		contract.EnvGeoURLGeoIP:   g.URLs.GeoIP,
+		contract.EnvGeoURLGeoSite: g.URLs.GeoSite,
+		contract.EnvGeoURLMMDB:    g.URLs.MMDB,
+		contract.EnvGeoURLASN:     g.URLs.ASN,
 	} {
 		if err := validateGeoURL(name, u); err != nil {
 			return g, err
 		}
 	}
 
-	g.AuthUser = getEnv("GEO_AUTH_USER", "")
-	g.AuthPass = getEnv("GEO_AUTH_PASS", "")
+	g.AuthUser = getEnv(contract.EnvGeoAuthUser, "")
+	g.AuthPass = getEnv(contract.EnvGeoAuthSecret, "")
 
 	// Both or neither — a partial credential pair is a misconfiguration.
 	if (g.AuthUser == "") != (g.AuthPass == "") {
-		return g, errors.New("GEO_AUTH_USER and GEO_AUTH_PASS must both be set or both be empty")
+		return g, errors.New(contract.EnvGeoAuthUser + " and " + contract.EnvGeoAuthSecret + " must both be set or both be empty")
 	}
 
 	if g.AuthUser != "" {
-		if err := validateGeoCredential("GEO_AUTH_USER", g.AuthUser); err != nil {
+		if err := validateGeoCredential(contract.EnvGeoAuthUser, g.AuthUser); err != nil {
 			return g, err
 		}
-		if err := validateGeoCredential("GEO_AUTH_PASS", g.AuthPass); err != nil {
+		if err := validateGeoCredential(contract.EnvGeoAuthSecret, g.AuthPass); err != nil {
 			return g, err
 		}
 	}
@@ -255,19 +256,19 @@ func loadGeoConfig() (GeoConfig, error) {
 func loadWarpConfig() (WarpConfig, error) {
 	var w WarpConfig
 
-	enabled, err := parseBoolEnv("USE_WARP_CONFIG", "true")
+	enabled, err := parseBoolEnv(contract.EnvUseWarpConfig, true)
 	if err != nil {
 		return w, err
 	}
 	w.Enabled = enabled
 
-	regenerate, err := parseBoolEnv("WARP_REGENERATE", "false")
+	regenerate, err := parseBoolEnv(contract.EnvWarpRegenerate, false)
 	if err != nil {
 		return w, err
 	}
 	w.Regenerate = regenerate
 
-	w.PlusKey = getEnv("WARP_PLUS_KEY", "")
+	w.PlusKey = getEnv(contract.EnvWarpPlusKey, "")
 	if w.PlusKey != "" {
 		err = validateWarpPlusKey(w.PlusKey)
 		if err != nil {
@@ -275,13 +276,13 @@ func loadWarpConfig() (WarpConfig, error) {
 		}
 	}
 
-	w.Endpoint = getEnv("WARP_ENDPOINT", "engage.cloudflareclient.com:500")
+	w.Endpoint = getEnv(contract.EnvWarpEndpoint, "engage.cloudflareclient.com:500")
 	err = validateWarpEndpoint(w.Endpoint)
 	if err != nil {
 		return w, err
 	}
 
-	dns, err := parseDNSList(getEnv("WARP_DNS", "1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001"))
+	dns, err := parseDNSList(getEnv(contract.EnvWarpDNS, "1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001"))
 	if err != nil {
 		return w, err
 	}
@@ -303,7 +304,7 @@ func loadAmneziaConfig() (AmneziaConfig, error) {
 		err error
 	)
 
-	a.Enabled, err = parseBoolEnv("WARP_AMNEZIA", "false")
+	a.Enabled, err = parseBoolEnv(contract.EnvWarpAmnezia, false)
 	if err != nil {
 		return a, err
 	}
@@ -312,33 +313,33 @@ func loadAmneziaConfig() (AmneziaConfig, error) {
 		return a, nil
 	}
 
-	a.JC, err = parseIntEnv("WARP_AMNEZIA_JC", "0", 0, 128)
+	a.JC, err = parseIntEnv(contract.EnvWarpAmneziaJC, "0", 0, 128)
 	if err != nil {
 		return a, err
 	}
 
-	a.JMin, err = parseIntEnv("WARP_AMNEZIA_JMIN", "0", 0, 1280)
+	a.JMin, err = parseIntEnv(contract.EnvWarpAmneziaJMin, "0", 0, 1280)
 	if err != nil {
 		return a, err
 	}
 
-	a.JMax, err = parseIntEnv("WARP_AMNEZIA_JMAX", "0", 0, 1280)
+	a.JMax, err = parseIntEnv(contract.EnvWarpAmneziaJMax, "0", 0, 1280)
 	if err != nil {
 		return a, err
 	}
 
 	// Cross-field constraint: jmin must be strictly less than jmax.
 	if a.JMin >= a.JMax {
-		return a, fmt.Errorf("WARP_AMNEZIA_JMIN (%d) must be less than WARP_AMNEZIA_JMAX (%d)", a.JMin, a.JMax)
+		return a, fmt.Errorf("%s (%d) must be less than %s (%d)", contract.EnvWarpAmneziaJMin, a.JMin, contract.EnvWarpAmneziaJMax, a.JMax)
 	}
 
 	for i := range a.I {
-		name := fmt.Sprintf("WARP_AMNEZIA_I%d", i+1)
+		name := fmt.Sprintf("%s%d", contract.EnvWarpAmneziaIPrefix, i+1)
 		a.I[i] = getEnv(name, "")
 	}
 
 	for i, val := range a.I {
-		name := fmt.Sprintf("WARP_AMNEZIA_I%d", i+1)
+		name := fmt.Sprintf("%s%d", contract.EnvWarpAmneziaIPrefix, i+1)
 		if err := validate.AmneziaIParam(name, val); err != nil {
 			return a, fmt.Errorf("%s: %w", name, err)
 		}
@@ -354,16 +355,28 @@ func getEnv(key, def string) string {
 	return def
 }
 
-func parseBoolEnv(key, def string) (bool, error) {
-	raw := getEnv(key, def)
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "true", "1", "yes", "on":
-		return true, nil
-	case "false", "0", "no", "off":
-		return false, nil
-	default:
-		return false, fmt.Errorf("%s: invalid boolean value %q (accepted: true/false/1/0/yes/no/on/off)", key, raw)
+func parseBoolEnv(key string, def bool) (bool, error) {
+	raw, ok := os.LookupEnv(key)
+	if !ok || raw == "" {
+		return def, nil
 	}
+
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	if isTrueBoolEnvValue(normalized) {
+		return true, nil
+	}
+	if isFalseBoolEnvValue(normalized) {
+		return false, nil
+	}
+	return false, fmt.Errorf("%s: invalid boolean value %q (accepted: true/false/1/0/yes/no/on/off)", key, raw)
+}
+
+func isTrueBoolEnvValue(v string) bool {
+	return v == "true" || v == "1" || v == "yes" || v == "on"
+}
+
+func isFalseBoolEnvValue(v string) bool {
+	return v == "false" || v == "0" || v == "no" || v == "off"
 }
 
 func parseUint32Env(key, def string, minVal, maxVal uint32) (uint32, error) {
@@ -404,10 +417,17 @@ func parseIntEnv(key, def string, minVal, maxVal int) (int, error) {
 
 func validateScriptLogLevel(v string) error {
 	switch strings.ToUpper(strings.TrimSpace(v)) {
-	case "DEBUG", "INFO", "WARN", "ERROR":
+	case contract.LogLevelDebug, contract.LogLevelInfo, contract.LogLevelWarn, contract.LogLevelError:
 		return nil
 	default:
-		return fmt.Errorf("SCRIPT_LOG_LEVEL: invalid value %q (accepted: DEBUG, INFO, WARN, ERROR)", v)
+		return fmt.Errorf("%s: invalid value %q (accepted: %s, %s, %s, %s)",
+			contract.EnvScriptLogLevel,
+			v,
+			contract.LogLevelDebug,
+			contract.LogLevelInfo,
+			contract.LogLevelWarn,
+			contract.LogLevelError,
+		)
 	}
 }
 
@@ -416,7 +436,7 @@ func validateProxyLogLevel(v string) error {
 	case "silent", "error", "warning", "info", "debug":
 		return nil
 	default:
-		return fmt.Errorf("PROXY_LOG_LEVEL: invalid value %q (accepted: silent, error, warning, info, debug)", v)
+		return fmt.Errorf("%s: invalid value %q (accepted: silent, error, warning, info, debug)", contract.EnvProxyLogLevel, v)
 	}
 }
 
@@ -428,26 +448,26 @@ func validateCredentialPair(user, pass string) error {
 	passSet := pass != ""
 
 	if !userSet && !passSet {
-		return errors.New("PROXY_USER and PROXY_PASS are required — an open unauthenticated proxy is a security risk; " +
+		return errors.New(contract.EnvProxyUser + " and " + contract.EnvProxyPass + " are required — an open unauthenticated proxy is a security risk; " +
 			"generate credentials with: pwgen -s 64 1 && pwgen -s 128 1")
 	}
 	if userSet && !passSet {
-		return errors.New("PROXY_PASS must be set when PROXY_USER is provided")
+		return errors.New(contract.EnvProxyPass + " must be set when " + contract.EnvProxyUser + " is provided")
 	}
 	if !userSet && passSet {
-		return errors.New("PROXY_USER must be set when PROXY_PASS is provided")
+		return errors.New(contract.EnvProxyUser + " must be set when " + contract.EnvProxyPass + " is provided")
 	}
 
-	if err := validateMinLength("PROXY_USER", user, 8); err != nil {
+	if err := validateMinLength(contract.EnvProxyUser, user, 8); err != nil {
 		return err
 	}
-	if err := validateMinLength("PROXY_PASS", pass, 32); err != nil {
+	if err := validateMinLength(contract.EnvProxyPass, pass, 32); err != nil {
 		return err
 	}
-	if err := validateCredential("PROXY_USER", user, 64); err != nil {
+	if err := validateCredential(contract.EnvProxyUser, user, 64); err != nil {
 		return err
 	}
-	if err := validateCredential("PROXY_PASS", pass, 128); err != nil {
+	if err := validateCredential(contract.EnvProxyPass, pass, 128); err != nil {
 		return err
 	}
 	return validatePasswordComplexity(pass)
@@ -492,7 +512,7 @@ func validateCredential(name, value string, maxLen int) error { //nolint:gocyclo
 // passwordRequirements is the human-readable description of all PROXY_PASS
 // constraints. Shown in full on any complexity failure so the user knows
 // exactly what is required rather than discovering rules one by one.
-const passwordRequirements = "PROXY_PASS requirements: " +
+const passwordRequirements = contract.EnvProxyPass + " requirements: " +
 	"min 32 characters; " +
 	"at least one uppercase letter (A-Z); " +
 	"at least one lowercase letter (a-z); " +
@@ -548,12 +568,12 @@ func validatePasswordComplexity(pass string) error { //nolint:gocyclo // linear 
 func validateWarpEndpoint(endpoint string) error {
 	lastColon := strings.LastIndex(endpoint, ":")
 	if lastColon < 0 {
-		return fmt.Errorf("WARP_ENDPOINT: missing port in %q", endpoint)
+		return fmt.Errorf("%s: missing port in %q", contract.EnvWarpEndpoint, endpoint)
 	}
 	host := endpoint[:lastColon]
 	port := endpoint[lastColon+1:]
 
-	const warpEndpointRequirements = "WARP_ENDPOINT requirements: host must be engage.cloudflareclient.com; port must be one of: 2408, 500, 1701, 4500"
+	const warpEndpointRequirements = contract.EnvWarpEndpoint + " requirements: host must be engage.cloudflareclient.com; port must be one of: 2408, 500, 1701, 4500"
 
 	validPort := port == "2408" || port == "500" || port == "1701" || port == "4500"
 	validHost := host == "engage.cloudflareclient.com"
@@ -567,7 +587,7 @@ func validateWarpEndpoint(endpoint string) error {
 // parseDNSList splits a comma-separated DNS string and validates each entry.
 func parseDNSList(raw string) ([]string, error) {
 	if strings.TrimSpace(raw) == "" {
-		return nil, errors.New("WARP_DNS: must not be empty")
+		return nil, errors.New(contract.EnvWarpDNS + ": must not be empty")
 	}
 
 	parts := strings.Split(raw, ",")
@@ -579,16 +599,16 @@ func parseDNSList(raw string) ([]string, error) {
 			continue
 		}
 		if !isValidDNSEntry(entry) {
-			return nil, fmt.Errorf("WARP_DNS: invalid entry %q (accepted: IPv4, IPv6, tls://, https://, quic://)", entry)
+			return nil, fmt.Errorf("%s: invalid entry %q (accepted: IPv4, IPv6, tls://, https://, quic://)", contract.EnvWarpDNS, entry)
 		}
 		result = append(result, entry)
 	}
 
 	if len(result) == 0 {
-		return nil, errors.New("WARP_DNS: no valid entries found")
+		return nil, errors.New(contract.EnvWarpDNS + ": no valid entries found")
 	}
 	if len(result) > 8 {
-		return nil, fmt.Errorf("WARP_DNS: too many entries (max 8, got %d)", len(result))
+		return nil, fmt.Errorf("%s: too many entries (max 8, got %d)", contract.EnvWarpDNS, len(result))
 	}
 
 	return result, nil
@@ -642,7 +662,7 @@ func isIPv4(s string) bool {
 
 func validateTZ(tz string) error {
 	if _, err := time.LoadLocation(tz); err != nil {
-		return fmt.Errorf("TZ: invalid timezone %q: %w", tz, err)
+		return fmt.Errorf("%s: invalid timezone %q: %w", contract.EnvTZ, tz, err)
 	}
 	return nil
 }
@@ -653,7 +673,7 @@ var warpPlusKeyRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{8}-[0-9a-fA-
 
 func validateWarpPlusKey(key string) error {
 	if !warpPlusKeyRe.MatchString(key) {
-		return fmt.Errorf("WARP_PLUS_KEY: invalid format %q (expected: xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx where x is a hex digit)", key)
+		return fmt.Errorf("%s: invalid format %q (expected: xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx where x is a hex digit)", contract.EnvWarpPlusKey, key)
 	}
 	return nil
 }
@@ -697,7 +717,7 @@ func FilterEnviron(environ []string) []string {
 			// Proxy credentials, WARP+ license key, and geo auth must never
 			// reach child processes — they have no need for these values and
 			// exposing them would increase the attack surface.
-			case "PROXY_PASS", "GEO_AUTH_USER", "GEO_AUTH_PASS", "WARP_PLUS_KEY":
+			case contract.EnvProxyPass, contract.EnvGeoAuthUser, contract.EnvGeoAuthSecret, contract.EnvWarpPlusKey:
 				continue
 			}
 		}

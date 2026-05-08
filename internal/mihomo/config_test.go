@@ -13,11 +13,6 @@ import (
 	"github.com/underhax/mihomo-warp-proxy/internal/wgcf"
 )
 
-const (
-	ruleMatchWarp   = "MATCH,warp"
-	ruleMatchDirect = "MATCH,DIRECT"
-)
-
 var (
 	testProfile = &wgcf.Profile{
 		PrivateKey: "YH2h2kSHzMaAgBNiNWuMEljlKGsaVKnv+hFtZOZEEEE=",
@@ -122,8 +117,8 @@ func TestTemplateRulesWarp(t *testing.T) {
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 	rules := doc["rules"].([]any)
-	if len(rules) != 1 || rules[0].(string) != ruleMatchWarp {
-		t.Errorf("template rules: got %v, want [%s]", rules, ruleMatchWarp)
+	if len(rules) != 1 || rules[0].(string) != minimalTemplateWarpRule() {
+		t.Errorf("template rules: got %v, want [%s]", rules, minimalTemplateWarpRule())
 	}
 }
 
@@ -138,8 +133,8 @@ func TestTemplateRulesDirect(t *testing.T) {
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 	rules := doc["rules"].([]any)
-	if len(rules) != 1 || rules[0].(string) != ruleMatchDirect {
-		t.Errorf("template rules: got %v, want [%s]", rules, ruleMatchDirect)
+	if len(rules) != 1 || rules[0].(string) != minimalTemplateDirectRule() {
+		t.Errorf("template rules: got %v, want [%s]", rules, minimalTemplateDirectRule())
 	}
 }
 
@@ -206,8 +201,8 @@ bind-address: "*"
 authentication:
   - "user:pass"
 listeners:
-  - name: my-vless
-    type: vless
+  - name: socks-in
+    type: socks
     port: 1080
 proxy-groups:
   - name: MyGroup
@@ -229,8 +224,8 @@ proxies:
     dns:
       - 1.1.1.1
 rules:
-  - DOMAIN-SUFFIX,example.com,DIRECT
-  - MATCH,MyGroup
+  - DOMAIN-SUFFIX,preserve.example.com,DIRECT
+  - MATCH,PreserveGroup
 `
 	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0o600); err != nil {
 		t.Fatal(err)
@@ -259,10 +254,10 @@ rules:
 	if len(rules) != 2 {
 		t.Errorf("rules count changed: got %d, want 2", len(rules))
 	}
-	if rules[0].(string) != "DOMAIN-SUFFIX,example.com,DIRECT" {
+	if rules[0].(string) != "DOMAIN-SUFFIX,preserve.example.com,DIRECT" {
 		t.Errorf("user rule[0] changed: got %q", rules[0])
 	}
-	if rules[1].(string) != "MATCH,MyGroup" {
+	if rules[1].(string) != "MATCH,PreserveGroup" {
 		t.Errorf("user rule[1] changed: got %q", rules[1])
 	}
 }
@@ -287,7 +282,7 @@ proxies:
     server: example.com
     port: 443
 rules:
-  - DOMAIN-SUFFIX,example.com,DIRECT
+  - DOMAIN-SUFFIX,append.example.com,DIRECT
   - MATCH,my-vless
 `
 	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0o600); err != nil {
@@ -344,8 +339,8 @@ func TestPatchReplacesMatchDirectWhenMinimalTemplate(t *testing.T) {
 
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 	rules := doc["rules"].([]any)
-	if len(rules) != 1 || rules[0].(string) != ruleMatchWarp {
-		t.Errorf("rules: got %v, want [%s]", rules, ruleMatchWarp)
+	if len(rules) != 1 || rules[0].(string) != minimalTemplateWarpRule() {
+		t.Errorf("rules: got %v, want [%s]", rules, minimalTemplateWarpRule())
 	}
 	proxies := doc["proxies"].([]any)
 	if !hasProxy(proxies, "warp") {
@@ -367,7 +362,7 @@ bind-address: "*"
 authentication: []
 proxies: []
 rules:
-  - DOMAIN-SUFFIX,example.com,DIRECT
+  - DOMAIN-SUFFIX,custom.example.com,DIRECT
   - MATCH,DIRECT
 `
 	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, []byte(userConfig), 0o600); err != nil {
@@ -384,7 +379,7 @@ rules:
 	if len(rules) != 2 {
 		t.Fatalf("rules count changed: got %d, want 2", len(rules))
 	}
-	if rules[1].(string) != ruleMatchDirect {
+	if rules[1].(string) != minimalTemplateDirectRule() {
 		t.Errorf("rules[1] changed: got %q", rules[1])
 	}
 }
@@ -403,9 +398,9 @@ func TestPatchDoesNotModifyRules(t *testing.T) {
 	// User manually edits rules.
 	doc := readYAML(t, cfg.Paths.MihomoConfigFile)
 	doc["rules"] = []any{
-		"DOMAIN-SUFFIX,example.com,DIRECT",
+		"DOMAIN-SUFFIX,audit.example.com,DIRECT",
 		"GEOIP,CN,DIRECT",
-		"MATCH,MyGroup",
+		"MATCH,AuditGroup",
 	}
 	data, _ := yaml.Marshal(doc) //nolint:errcheck // mock serialization
 	if err := os.WriteFile(cfg.Paths.MihomoConfigFile, data, 0o600); err != nil {
@@ -423,13 +418,13 @@ func TestPatchDoesNotModifyRules(t *testing.T) {
 	if len(rules) != 3 {
 		t.Fatalf("rules count changed: got %d, want 3", len(rules))
 	}
-	if rules[0].(string) != "DOMAIN-SUFFIX,example.com,DIRECT" {
+	if rules[0].(string) != "DOMAIN-SUFFIX,audit.example.com,DIRECT" {
 		t.Errorf("rules[0] changed: got %q", rules[0])
 	}
 	if rules[1].(string) != "GEOIP,CN,DIRECT" {
 		t.Errorf("rules[1] changed: got %q", rules[1])
 	}
-	if rules[2].(string) != "MATCH,MyGroup" {
+	if rules[2].(string) != "MATCH,AuditGroup" {
 		t.Errorf("rules[2] changed: got %q", rules[2])
 	}
 }
@@ -563,16 +558,16 @@ func TestFindProxyByNameNode(t *testing.T) {
 	makeNode := func(name string) *yaml.Node {
 		return &yaml.Node{
 			Kind: yaml.MappingNode,
-			Tag:  "!!map",
+			Tag:  yamlTagMap,
 			Content: []*yaml.Node{
-				{Kind: yaml.ScalarNode, Tag: "!!str", Value: "name"},
-				{Kind: yaml.ScalarNode, Tag: "!!str", Value: name},
+				{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: "name"},
+				{Kind: yaml.ScalarNode, Tag: yamlTagStr, Value: name},
 			},
 		}
 	}
 	seq := &yaml.Node{
 		Kind:    yaml.SequenceNode,
-		Tag:     "!!seq",
+		Tag:     yamlTagSeq,
 		Content: []*yaml.Node{makeNode("direct"), makeNode("warp"), makeNode("vless")},
 	}
 
@@ -582,7 +577,7 @@ func TestFindProxyByNameNode(t *testing.T) {
 	if idx := findProxyByNameNode(seq, "missing"); idx != -1 {
 		t.Errorf("findProxyByNameNode missing: got %d, want -1", idx)
 	}
-	emptySeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	emptySeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: yamlTagSeq}
 	if idx := findProxyByNameNode(emptySeq, "warp"); idx != -1 {
 		t.Errorf("findProxyByNameNode empty: got %d, want -1", idx)
 	}

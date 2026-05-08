@@ -5,7 +5,17 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/underhax/mihomo-warp-proxy/internal/contract"
 )
+
+func assertFallbackVersion(t *testing.T, got string) {
+	t.Helper()
+	if got == "unknown" {
+		return
+	}
+	t.Errorf("got %q, want fallback version", got)
+}
 
 func TestParseLevel(t *testing.T) {
 	cases := []struct {
@@ -13,13 +23,13 @@ func TestParseLevel(t *testing.T) {
 		want    Level
 		wantErr bool
 	}{
-		{"DEBUG", LevelDebug, false},
+		{contract.LogLevelDebug, LevelDebug, false},
 		{"debug", LevelDebug, false},
-		{"INFO", LevelInfo, false},
-		{"WARN", LevelWarn, false},
+		{contract.LogLevelInfo, LevelInfo, false},
+		{contract.LogLevelWarn, LevelWarn, false},
 		{"WARNING", LevelWarn, false},
-		{"ERROR", LevelError, false},
-		{"  WARN  ", LevelWarn, false},
+		{contract.LogLevelError, LevelError, false},
+		{"  " + contract.LogLevelWarn + "  ", LevelWarn, false},
 		{"", LevelWarn, true},
 		{"VERBOSE", LevelWarn, true},
 		{"TRACE", LevelWarn, true},
@@ -57,45 +67,33 @@ func TestVersionFromFile(t *testing.T) {
 		}
 	})
 
-	t.Run("missing file returns unknown", func(t *testing.T) {
-		got := VersionFromFile(filepath.Join(dir, "nonexistent"))
-		if got != versionUnknown {
-			t.Errorf("got %q, want %q", got, versionUnknown)
-		}
+	t.Run("missing file uses fallback", func(t *testing.T) {
+		assertFallbackVersion(t, VersionFromFile(filepath.Join(dir, "nonexistent")))
 	})
 
-	t.Run("empty file returns unknown", func(t *testing.T) {
+	t.Run("empty file uses fallback", func(t *testing.T) {
 		path := filepath.Join(dir, "empty")
 		if err := os.WriteFile(path, []byte("   \n"), 0o644); err != nil { // #nosec G306
 			t.Fatal(err)
 		}
-		got := VersionFromFile(path)
-		if got != versionUnknown {
-			t.Errorf("got %q, want %q", got, versionUnknown)
-		}
+		assertFallbackVersion(t, VersionFromFile(path))
 	})
 
-	t.Run("oversized version returns unknown", func(t *testing.T) {
+	t.Run("oversized version uses fallback", func(t *testing.T) {
 		path := filepath.Join(dir, "toolong")
 		if err := os.WriteFile(path, []byte(strings.Repeat("a", 33)), 0o644); err != nil { // #nosec G306
 			t.Fatal(err)
 		}
-		got := VersionFromFile(path)
-		if got != versionUnknown {
-			t.Errorf("got %q, want %q", got, versionUnknown)
-		}
+		assertFallbackVersion(t, VersionFromFile(path))
 	})
 
-	t.Run("control characters return unknown", func(t *testing.T) {
+	t.Run("control characters use fallback", func(t *testing.T) {
 		path := filepath.Join(dir, "ctrlchars")
 		// Embed a newline inside the version string — potential log injection.
 		if err := os.WriteFile(path, []byte("1.0\x00evil"), 0o644); err != nil { // #nosec G306
 			t.Fatal(err)
 		}
-		got := VersionFromFile(path)
-		if got != versionUnknown {
-			t.Errorf("got %q, want %q", got, versionUnknown)
-		}
+		assertFallbackVersion(t, VersionFromFile(path))
 	})
 }
 

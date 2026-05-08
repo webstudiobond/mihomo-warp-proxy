@@ -53,13 +53,13 @@ func TestResolveRedirect(t *testing.T) {
 	}{
 		{
 			name:     "absolute https location",
-			current:  "https://example.com/old",
+			current:  "https://example.com/source-absolute",
 			location: "https://cdn.example.com/new",
 			want:     "https://cdn.example.com/new",
 		},
 		{
 			name:     "absolute path location",
-			current:  "https://example.com/old",
+			current:  "https://example.com/source-path",
 			location: "/v2/file.dat",
 			want:     "https://example.com/v2/file.dat",
 		},
@@ -71,19 +71,19 @@ func TestResolveRedirect(t *testing.T) {
 		},
 		{
 			name:     "protocol-relative location",
-			current:  "https://example.com/old",
+			current:  "https://example.com/source-protocol",
 			location: "//cdn.example.com/file.dat",
 			want:     "https://cdn.example.com/file.dat",
 		},
 		{
 			name:     "https to http downgrade rejected",
-			current:  "https://example.com/old",
+			current:  "https://example.com/source-downgrade",
 			location: "http://example.com/new",
 			wantErr:  true,
 		},
 		{
 			name:     "invalid location rejected",
-			current:  "https://example.com/old",
+			current:  "https://example.com/source-invalid",
 			location: "://bad",
 			wantErr:  true,
 		},
@@ -304,26 +304,26 @@ func TestApplyAuthCrossOriginProtection(t *testing.T) {
 	}{
 		{
 			name:     "same host — credentials applied",
-			reqURL:   "https://cdn.example.com/geoip.dat",
-			origHost: "cdn.example.com",
+			reqURL:   "https://cdn-auth.example.com/geoip.dat",
+			origHost: "cdn-auth.example.com",
 			wantAuth: true,
 		},
 		{
 			name:     "cross-origin redirect — credentials withheld",
 			reqURL:   "https://attacker.example.com/geoip.dat",
-			origHost: "cdn.example.com",
+			origHost: "cdn-origin.example.com",
 			wantAuth: false,
 		},
 		{
 			name:     "subdomain treated as different host — credentials withheld",
-			reqURL:   "https://sub.cdn.example.com/geoip.dat",
-			origHost: "cdn.example.com",
+			reqURL:   "https://sub.cdn-redirect.example.com/geoip.dat",
+			origHost: "cdn-redirect.example.com",
 			wantAuth: false,
 		},
 		{
 			name:     "no credentials configured — header absent",
-			reqURL:   "https://cdn.example.com/geoip.dat",
-			origHost: "cdn.example.com",
+			reqURL:   "https://cdn-noauth.example.com/geoip.dat",
+			origHost: "cdn-noauth.example.com",
 			wantAuth: false,
 			// override cfg inline below
 		},
